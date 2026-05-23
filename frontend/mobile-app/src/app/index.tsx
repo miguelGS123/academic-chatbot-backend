@@ -1,160 +1,97 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
-import { colors, radius, spacing, typography } from '@/shared/theme';
+import {
+  AppCard,
+  AppScreen,
+  AppText,
+  ModuleCard,
+} from '@/shared/components';
+import { colors, radius, spacing } from '@/shared/theme';
+
+const modules = [
+  {
+    title: 'Estudio',
+    description: 'Materiales, progreso y asistencia IA.',
+  },
+  {
+    title: 'Cursos',
+    description: 'Gestión académica y avance curricular.',
+  },
+  {
+    title: 'Pagos',
+    description: 'Estado financiero y pagos pendientes.',
+  },
+  {
+    title: 'Preguntas',
+    description: 'Consultas frecuentes y soporte académico.',
+  },
+  {
+    title: 'Docentes',
+    description: 'Información docente y acompañamiento.',
+  },
+] as const;
 
 export default function HomeScreen(): React.JSX.Element {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.badge}>Academic Chatbot Platform</Text>
-
-          <Text style={styles.title}>
-            Plataforma universitaria inteligente
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Frontend móvil profesional listo para construir módulos, navegación
-            y experiencia IA.
-          </Text>
+    <AppScreen>
+      <View style={styles.header}>
+        <View style={styles.badge}>
+          <AppText variant="badge">Academic Chatbot Platform</AppText>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Módulos principales</Text>
+        <AppText variant="title">
+          Plataforma universitaria inteligente
+        </AppText>
 
-          <View style={styles.modulesGrid}>
-            <View style={styles.moduleItem}>
-              <Text style={styles.moduleTitle}>Estudio</Text>
-            </View>
+        <AppText variant="subtitle">
+          Frontend móvil profesional preparado para módulos, navegación,
+          autenticación y agentes de IA.
+        </AppText>
+      </View>
 
-            <View style={styles.moduleItem}>
-              <Text style={styles.moduleTitle}>Cursos</Text>
-            </View>
+      <AppCard>
+        <AppText variant="sectionTitle">Módulos principales</AppText>
 
-            <View style={styles.moduleItem}>
-              <Text style={styles.moduleTitle}>Pagos</Text>
-            </View>
-
-            <View style={styles.moduleItem}>
-              <Text style={styles.moduleTitle}>Preguntas</Text>
-            </View>
-
-            <View style={styles.moduleItem}>
-              <Text style={styles.moduleTitle}>Docentes</Text>
-            </View>
-          </View>
+        <View style={styles.modulesGrid}>
+          {modules.map((module) => (
+            <ModuleCard
+              key={module.title}
+              title={module.title}
+              description={module.description}
+            />
+          ))}
         </View>
+      </AppCard>
 
-        <View style={styles.aiCard}>
-          <Text style={styles.aiTitle}>Agente IA transversal</Text>
-          <Text style={styles.aiText}>
-            Preparado para integrarse luego con asistencia académica,
-            consultas, pagos, cursos y soporte docente.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <AppCard variant="highlight">
+        <AppText variant="sectionTitle">Agente IA transversal</AppText>
+
+        <AppText color={colors.text.primary}>
+          Preparado para integrarse luego con asistencia académica, consultas,
+          pagos, cursos y soporte docente.
+        </AppText>
+      </AppCard>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-
-  content: {
-    padding: spacing.xl,
-    gap: spacing.xl,
-  },
-
   header: {
     gap: spacing.md,
   },
 
   badge: {
     alignSelf: 'flex-start',
-    color: colors.brand.primary,
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
     backgroundColor: colors.background.elevated,
     borderRadius: radius.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
 
-  title: {
-    color: colors.text.primary,
-    fontSize: typography.size['3xl'],
-    fontWeight: typography.weight.bold,
-    lineHeight: 40,
-  },
-
-  subtitle: {
-    color: colors.text.secondary,
-    fontSize: typography.size.md,
-    lineHeight: 24,
-  },
-
-  card: {
-    backgroundColor: colors.background.elevated,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    gap: spacing.lg,
-  },
-
-  cardTitle: {
-    color: colors.text.primary,
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-  },
-
   modulesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
-  },
-
-  moduleItem: {
-    width: '47%',
-    minHeight: 84,
-    justifyContent: 'center',
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-  },
-
-  moduleTitle: {
-    color: colors.text.primary,
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-  },
-
-  aiCard: {
-    backgroundColor: colors.brand.secondary,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-
-  aiTitle: {
-    color: colors.text.primary,
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-  },
-
-  aiText: {
-    color: colors.text.primary,
-    fontSize: typography.size.sm,
-    lineHeight: 22,
   },
 });
