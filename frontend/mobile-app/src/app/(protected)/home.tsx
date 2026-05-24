@@ -1,7 +1,10 @@
+import { router, type Href } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
+  AppButton,
   AppCard,
   AppScreen,
   AppText,
@@ -9,46 +12,77 @@ import {
 } from '@/shared/components';
 import { colors, radius, spacing } from '@/shared/theme';
 
+const loginRoute = '/(auth)/login' as Href;
+
 const modules = [
   {
     title: 'Estudio',
-    description: 'Materiales, progreso y asistencia IA.',
+    description: 'Materiales y avance académico.',
   },
   {
     title: 'Cursos',
-    description: 'Gestión académica y avance curricular.',
+    description: 'Cursos inscritos y horarios.',
   },
   {
     title: 'Pagos',
-    description: 'Estado financiero y pagos pendientes.',
+    description: 'Estado financiero y cuotas.',
   },
   {
     title: 'Preguntas',
-    description: 'Consultas frecuentes y soporte académico.',
+    description: 'Soporte académico rápido.',
   },
   {
     title: 'Docentes',
-    description: 'Información docente y acompañamiento.',
+    description: 'Información de tus profesores.',
   },
 ] as const;
 
 export default function HomeScreen(): React.JSX.Element {
+  const { signOut } = useAuth();
+
+  async function handleLogout(): Promise<void> {
+    await signOut();
+    router.replace(loginRoute);
+  }
+
   return (
     <AppScreen>
       <View style={styles.header}>
         <View style={styles.badge}>
-          <AppText variant="badge">Academic Chatbot Platform</AppText>
+          <AppText variant="badge">Autónoma del Perú</AppText>
         </View>
 
-        <AppText variant="title">
-          Plataforma universitaria inteligente
-        </AppText>
+        <AppText variant="title">Hola, Miguel</AppText>
 
         <AppText variant="subtitle">
-          Frontend móvil profesional preparado para módulos, navegación,
-          autenticación y agentes de IA.
+          Bienvenido a tu espacio académico inteligente.
         </AppText>
       </View>
+
+      <AppCard variant="highlight">
+        <AppText variant="sectionTitle">Chatzitho</AppText>
+
+        <AppText color={colors.text.primary}>
+          Consulta tus cursos, pagos, docentes y dudas académicas desde un solo
+          lugar.
+        </AppText>
+      </AppCard>
+
+      <AppCard>
+        <AppText variant="sectionTitle">Resumen académico</AppText>
+
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryItem}>
+            <AppText variant="sectionTitle">5</AppText>
+            <AppText variant="caption">Cursos activos</AppText>
+          </View>
+
+          <View style={styles.summaryItem}>
+            <AppText variant="sectionTitle">2</AppText>
+            <AppText variant="caption">Pagos pendientes</AppText>
+          </View>
+        </View>
+      </AppCard>
 
       <AppCard>
         <AppText variant="sectionTitle">Módulos principales</AppText>
@@ -64,14 +98,7 @@ export default function HomeScreen(): React.JSX.Element {
         </View>
       </AppCard>
 
-      <AppCard variant="highlight">
-        <AppText variant="sectionTitle">Agente IA transversal</AppText>
-
-        <AppText color={colors.text.primary}>
-          Preparado para integrarse luego con asistencia académica, consultas,
-          pagos, cursos y soporte docente.
-        </AppText>
-      </AppCard>
+      <AppButton title="Cerrar sesión" onPress={handleLogout} />
     </AppScreen>
   );
 }
@@ -87,6 +114,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+
+  summaryGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  summaryItem: {
+    flex: 1,
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    gap: spacing.xs,
   },
 
   modulesGrid: {

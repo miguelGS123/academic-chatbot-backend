@@ -1,6 +1,9 @@
+import { router, type Href } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
+import { loginWithCredentials } from '@/features/auth/services/auth.service';
 import {
   AppButton,
   AppCard,
@@ -27,12 +30,16 @@ const initialForm: LoginForm = {
   password: '',
 };
 
+const homeRoute = '/(protected)/home' as Href;
+
 export default function LoginScreen(): React.JSX.Element {
   const [form, setForm] = useState<LoginForm>(initialForm);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isUniversitySelectorOpen, setIsUniversitySelectorOpen] =
     useState(false);
+
+ const { signIn } = useAuth();
 
   const availableUniversities = universities.filter(
     (university) => university.enabled && university.name !== form.university,
@@ -79,23 +86,32 @@ export default function LoginScreen(): React.JSX.Element {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function handleLogin(): void {
+  async function handleLogin(): Promise<void> {
     const isValid = validateForm();
 
     if (!isValid) {
       return;
     }
 
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
+      const response = await loginWithCredentials({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
 
+      await signIn(response.access_token);
+
+      router.replace(homeRoute);
+    } catch {
       Alert.alert(
-        'Login listo',
-        'Luego conectaremos este flujo con FastAPI, JWT y rutas protegidas.',
+        'No se pudo iniciar sesión',
+        'Verifica tus credenciales o confirma que el backend esté activo.',
       );
-    }, 900);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function handlePasswordRecovery(): void {
@@ -109,6 +125,7 @@ export default function LoginScreen(): React.JSX.Element {
     <AppScreen contentStyle={styles.content}>
       <View style={styles.brandContainer}>
         <AppText style={styles.brandTitle}>Chatzitho</AppText>
+
         <AppText variant="caption" style={styles.brandSubtitle}>
           Tu asistente académico inteligente
         </AppText>
