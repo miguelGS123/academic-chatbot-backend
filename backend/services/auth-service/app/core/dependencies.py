@@ -19,7 +19,7 @@ from app.repositories.user_repository import (
 )
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/users/login"
+    tokenUrl="/api/v1/users/users/login"
 )
 
 
@@ -39,7 +39,7 @@ def get_current_user(
             algorithms=[settings.ALGORITHM]
         )
 
-        email: str = payload.get("sub")
+        email: str | None = payload.get("sub")
 
         if email is None:
             raise credentials_exception

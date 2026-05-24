@@ -1,5 +1,9 @@
 import { env } from '@/config/env';
-import type { LoginResponse } from '@/features/auth/types/auth.types';
+import type {
+  LoginResponse,
+  RegisterPayload,
+  RegisterResponse,
+} from '@/features/auth/types/auth.types';
 
 type LoginPayload = {
   email: string;
@@ -34,4 +38,29 @@ export async function loginWithCredentials(
   }
 
   return response.json() as Promise<LoginResponse>;
+}
+
+export async function registerUser(
+  payload: RegisterPayload,
+): Promise<RegisterResponse> {
+  const response = await fetch(
+    `${env.apiBaseUrl}/api/v1/users/users/register`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    console.error('Register error:', errorText);
+
+    throw new Error('No se pudo registrar el usuario.');
+  }
+
+  return response.json() as Promise<RegisterResponse>;
 }

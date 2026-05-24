@@ -5,7 +5,7 @@ from app.models.user_model import User
 
 def get_user_by_email(
     db: Session,
-    email: str
+    email: str,
 ):
     return db.query(User).filter(
         User.email == email
@@ -16,12 +16,16 @@ def create_user(
     db: Session,
     full_name: str,
     email: str,
-    password: str
+    password: str,
+    career: str,
 ):
     user = User(
         full_name=full_name,
         email=email,
-        password=password
+        password=password,
+        role="student",
+        career=career,
+        is_active=True,
     )
 
     db.add(user)

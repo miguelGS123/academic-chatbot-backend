@@ -8,19 +8,26 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy.orm import Session
 
+from app.core.dependencies import get_current_user
+
+from app.db.session import get_db
+
+from app.models.user_model import User
+
+from app.schemas.token_schema import Token
+
 from app.schemas.user_schema import (
+    CurrentUserResponse,
     UserCreate,
     UserResponse
 )
 
-from app.schemas.token_schema import Token
-
 from app.services.user_service import (
-    register_user,
-    login_user
+    login_user,
+    register_user
 )
 
-from app.db.session import get_db
+from app.utils.university_resolver import resolve_university_by_email
 
 router = APIRouter(
     prefix="/users",
@@ -76,3 +83,20 @@ def login(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+
+@router.get(
+    "/me",
+    response_model=CurrentUserResponse
+)
+def get_me(
+    current_user: User = Depends(get_current_user)
+):
+    return CurrentUserResponse(
+        id=current_user.id,
+        full_name=current_user.full_name,
+        email=current_user.email,
+        university=resolve_university_by_email(current_user.email),
+        role=None,
+        career=None
+    )

@@ -1,4 +1,4 @@
-name: Mobile Frontend CI
+name: Academic Platform CI
 
 on:
   pull_request:
@@ -6,15 +6,20 @@ on:
       - main
     paths:
       - "frontend/mobile-app/**"
+      - "backend/services/auth-service/**"
+      - ".github/workflows/**"
 
   push:
     branches:
       - main
     paths:
       - "frontend/mobile-app/**"
+      - "backend/services/auth-service/**"
+      - ".github/workflows/**"
 
 jobs:
   mobile-quality:
+    name: Mobile Frontend Quality
     runs-on: ubuntu-latest
 
     defaults:
@@ -40,3 +45,33 @@ jobs:
 
       - name: Lint check
         run: npm run lint
+
+  auth-service-quality:
+    name: Auth Service Quality
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend/services/auth-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/services/auth-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate Python imports
+        run: python -m compileall app
+
+      - name: Validate FastAPI app import
+        run: python -c "from app.main import app; print(app.title)"

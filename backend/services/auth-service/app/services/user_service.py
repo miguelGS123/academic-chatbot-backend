@@ -1,14 +1,14 @@
 from sqlalchemy.orm import Session
 
-from app.repositories.user_repository import (
-    get_user_by_email,
-    create_user
-)
-
 from app.core.security import (
+    create_access_token,
     hash_password,
     verify_password,
-    create_access_token
+)
+
+from app.repositories.user_repository import (
+    create_user,
+    get_user_by_email,
 )
 
 
@@ -16,11 +16,12 @@ def register_user(
     db: Session,
     full_name: str,
     email: str,
-    password: str
+    password: str,
+    career: str,
 ):
     existing_user = get_user_by_email(
         db,
-        email
+        email,
     )
 
     if existing_user:
@@ -32,7 +33,8 @@ def register_user(
         db,
         full_name,
         email,
-        hashed_password
+        hashed_password,
+        career,
     )
 
     return user
@@ -41,24 +43,27 @@ def register_user(
 def login_user(
     db: Session,
     email: str,
-    password: str
+    password: str,
 ):
     user = get_user_by_email(
         db,
-        email
+        email,
     )
 
     if not user:
         return None
 
+    if not user.is_active:
+        return None
+
     if not verify_password(
         password,
-        user.password
+        user.password,
     ):
         return None
 
     access_token = create_access_token({
-        "sub": user.email
+        "sub": user.email,
     })
 
     return access_token
