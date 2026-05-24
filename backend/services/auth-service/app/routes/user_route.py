@@ -1,7 +1,7 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException
+    HTTPException,
 )
 
 from fastapi.security import OAuth2PasswordRequestForm
@@ -19,41 +19,42 @@ from app.schemas.token_schema import Token
 from app.schemas.user_schema import (
     CurrentUserResponse,
     UserCreate,
-    UserResponse
+    UserResponse,
 )
 
 from app.services.user_service import (
     login_user,
-    register_user
+    register_user,
 )
 
 from app.utils.university_resolver import resolve_university_by_email
 
 router = APIRouter(
     prefix="/users",
-    tags=["Users"]
+    tags=["Users"],
 )
 
 
 @router.post(
     "/register",
-    response_model=UserResponse
+    response_model=UserResponse,
 )
 def register(
     user: UserCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     created_user = register_user(
         db,
         user.full_name,
         user.email,
-        user.password
+        user.password,
+        user.career,
     )
 
     if not created_user:
         raise HTTPException(
             status_code=400,
-            detail="Email already registered"
+            detail="Email already registered",
         )
 
     return created_user
@@ -61,42 +62,43 @@ def register(
 
 @router.post(
     "/login",
-    response_model=Token
+    response_model=Token,
 )
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     access_token = login_user(
         db,
         form_data.username,
-        form_data.password
+        form_data.password,
     )
 
     if not access_token:
         raise HTTPException(
             status_code=401,
-            detail="Invalid credentials"
+            detail="Invalid credentials",
         )
 
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
     }
 
 
 @router.get(
     "/me",
-    response_model=CurrentUserResponse
+    response_model=CurrentUserResponse,
 )
 def get_me(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     return CurrentUserResponse(
         id=current_user.id,
         full_name=current_user.full_name,
         email=current_user.email,
         university=resolve_university_by_email(current_user.email),
-        role=None,
-        career=None
+        role=current_user.role,
+        career=current_user.career,
+        is_active=current_user.is_active,
     )
