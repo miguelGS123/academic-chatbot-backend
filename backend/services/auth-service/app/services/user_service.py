@@ -18,6 +18,7 @@ def register_user(
     email: str,
     password: str,
     career: str,
+    cycle: int,
 ):
     existing_user = get_user_by_email(
         db,
@@ -35,6 +36,7 @@ def register_user(
         email,
         hashed_password,
         career,
+        cycle,
     )
 
     return user

@@ -19,6 +19,8 @@ class User(Base):
 
     career = Column(String, nullable=True)
 
+    cycle = Column(Integer, nullable=True)
+
     is_active = Column(Boolean, nullable=False, default=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

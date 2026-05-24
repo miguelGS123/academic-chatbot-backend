@@ -4,10 +4,11 @@ export type LoginResponse = {
 };
 
 export type RegisterPayload = {
-  full_name: string;
+  fullName: string;
   email: string;
   password: string;
   career: string;
+  cycle: number;
 };
 
 export type RegisterResponse = {
@@ -16,5 +17,17 @@ export type RegisterResponse = {
   email: string;
   role: string;
   career: string | null;
+  cycle: number | null;
+  is_active: boolean;
+};
+
+export type AuthUser = {
+  id: number;
+  full_name: string;
+  email: string;
+  university: string | null;
+  role: string;
+  career: string | null;
+  cycle: number | null;
   is_active: boolean;
 };

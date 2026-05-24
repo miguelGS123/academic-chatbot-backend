@@ -1,139 +1,127 @@
 import { router, type Href } from 'expo-router';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+
 import {
-  AppButton,
-  AppCard,
-  AppScreen,
-  AppText,
-  ModuleCard,
-} from '@/shared/components';
-import { colors, radius, spacing } from '@/shared/theme';
+  HomeModulesGrid,
+  ProfileMenu,
+  UniversityHeader,
+} from '@/features/home/components';
+
+import {
+  formatCycle,
+  formatRole,
+  getInitials,
+  getUniversityIdByName,
+} from '@/features/home/utils/home-formatters';
+
+import { AppScreen, AppText } from '@/shared/components';
+
+import { getUniversityLogoById } from '@/shared/constants/university-assets';
+
+import { colors, spacing } from '@/shared/theme';
 
 const loginRoute = '/(auth)/login' as Href;
 
-const modules = [
-  {
-    title: 'Estudio',
-    description: 'Materiales y avance académico.',
-  },
-  {
-    title: 'Cursos',
-    description: 'Cursos inscritos y horarios.',
-  },
-  {
-    title: 'Pagos',
-    description: 'Estado financiero y cuotas.',
-  },
-  {
-    title: 'Preguntas',
-    description: 'Soporte académico rápido.',
-  },
-  {
-    title: 'Docentes',
-    description: 'Información de tus profesores.',
-  },
-] as const;
-
 export default function HomeScreen(): React.JSX.Element {
-  const { signOut } = useAuth();
+  const { user, isAuthenticated, isLoading, signOut } = useAuth();
+
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace(loginRoute);
+    }
+  }, [isAuthenticated, isLoading]);
+
+  const displayName = user?.full_name ?? '';
+  const universityName = user?.university ?? 'Universidad no identificada';
+
+  const email = user?.email ?? '';
+  const career = user?.career ?? 'No registrada';
+  const role = formatRole(user?.role);
+  const cycle = formatCycle(user?.cycle);
+
+  const universityId = getUniversityIdByName(user?.university);
+
+  const universityLogo = getUniversityLogoById(universityId);
+
+  const initials = useMemo(() => getInitials(displayName), [displayName]);
 
   async function handleLogout(): Promise<void> {
+    setIsMenuVisible(false);
+
     await signOut();
+
     router.replace(loginRoute);
+  }
+
+  if (isLoading) {
+    return (
+      <AppScreen contentStyle={styles.loadingContainer} scrollable={false}>
+        <ActivityIndicator color={colors.brand.primary} size="large" />
+
+        <AppText variant="caption">Cargando sesión...</AppText>
+      </AppScreen>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AppScreen contentStyle={styles.loadingContainer} scrollable={false}>
+        <ActivityIndicator color={colors.brand.primary} size="large" />
+
+        <AppText variant="caption">Redirigiendo al login...</AppText>
+      </AppScreen>
+    );
   }
 
   return (
     <AppScreen>
-      <View style={styles.header}>
-        <View style={styles.badge}>
-          <AppText variant="badge">Autónoma del Perú</AppText>
-        </View>
+      <UniversityHeader
+        initials={initials}
+        universityLogo={universityLogo}
+        universityName={universityName}
+        onOpenMenu={() => setIsMenuVisible(true)}
+      />
 
-        <AppText variant="title">Hola, Miguel</AppText>
+      <View style={styles.header}>
+        <AppText variant="title">Hola, {displayName}</AppText>
 
         <AppText variant="subtitle">
-          Bienvenido a tu espacio académico inteligente.
+          Elige un módulo para continuar con tu gestión académica.
         </AppText>
       </View>
 
-      <AppCard variant="highlight">
-        <AppText variant="sectionTitle">Chatzitho</AppText>
+      <HomeModulesGrid />
 
-        <AppText color={colors.text.primary}>
-          Consulta tus cursos, pagos, docentes y dudas académicas desde un solo
-          lugar.
-        </AppText>
-      </AppCard>
-
-      <AppCard>
-        <AppText variant="sectionTitle">Resumen académico</AppText>
-
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryItem}>
-            <AppText variant="sectionTitle">5</AppText>
-            <AppText variant="caption">Cursos activos</AppText>
-          </View>
-
-          <View style={styles.summaryItem}>
-            <AppText variant="sectionTitle">2</AppText>
-            <AppText variant="caption">Pagos pendientes</AppText>
-          </View>
-        </View>
-      </AppCard>
-
-      <AppCard>
-        <AppText variant="sectionTitle">Módulos principales</AppText>
-
-        <View style={styles.modulesGrid}>
-          {modules.map((module) => (
-            <ModuleCard
-              key={module.title}
-              title={module.title}
-              description={module.description}
-            />
-          ))}
-        </View>
-      </AppCard>
-
-      <AppButton title="Cerrar sesión" onPress={handleLogout} />
+      <ProfileMenu
+        career={career}
+        cycle={cycle}
+        displayName={displayName}
+        email={email}
+        initials={initials}
+        role={role}
+        universityName={universityName}
+        visible={isMenuVisible}
+        onClose={() => setIsMenuVisible(false)}
+        onLogout={handleLogout}
+      />
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: spacing.md,
-  },
-
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background.elevated,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-
-  summaryGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-
-  summaryItem: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background.secondary,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    gap: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
   },
 
-  modulesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  header: {
     gap: spacing.md,
   },
 });

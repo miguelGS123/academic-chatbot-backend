@@ -18,6 +18,7 @@ def create_user(
     email: str,
     password: str,
     career: str,
+    cycle: int,
 ):
     user = User(
         full_name=full_name,
@@ -25,6 +26,7 @@ def create_user(
         password=password,
         role="student",
         career=career,
+        cycle=cycle,
         is_active=True,
     )
 

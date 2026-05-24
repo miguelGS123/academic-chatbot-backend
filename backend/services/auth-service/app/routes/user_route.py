@@ -49,6 +49,7 @@ def register(
         user.email,
         user.password,
         user.career,
+        user.cycle,
     )
 
     if not created_user:
@@ -100,5 +101,6 @@ def get_me(
         university=resolve_university_by_email(current_user.email),
         role=current_user.role,
         career=current_user.career,
+        cycle=current_user.cycle,
         is_active=current_user.is_active,
     )

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -6,6 +6,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     career: str
+    cycle: int = Field(ge=1, le=10)
 
 
 class UserResponse(BaseModel):
@@ -14,6 +15,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
     career: str | None
+    cycle: int | None
     is_active: bool
 
     class Config:
@@ -27,4 +29,5 @@ class CurrentUserResponse(BaseModel):
     university: str | None = None
     role: str
     career: str | None = None
+    cycle: int | None = None
     is_active: bool

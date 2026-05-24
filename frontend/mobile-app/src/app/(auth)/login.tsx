@@ -1,18 +1,22 @@
 import { router, type Href } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
-import { useAuth } from '@/features/auth/hooks/useAuth';
 
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { loginWithCredentials } from '@/features/auth/services/auth.service';
+
 import {
   AppButton,
   AppCard,
   AppInput,
   AppScreen,
+  AppSelect,
   AppText,
+  type AppSelectOption,
 } from '@/shared/components';
+
 import { universities } from '@/shared/constants/universities';
-import { colors, radius, spacing, typography } from '@/shared/theme';
+import { colors, spacing, typography } from '@/shared/theme';
 
 type LoginForm = {
   university: string;
@@ -21,6 +25,14 @@ type LoginForm = {
 };
 
 type LoginErrors = Partial<Record<keyof LoginForm, string>>;
+
+const universityOptions: AppSelectOption[] = universities.map((university) => ({
+  label: university.enabled
+    ? university.name
+    : `${university.name} — Próximamente`,
+  value: university.name,
+  disabled: !university.enabled,
+}));
 
 const defaultUniversity = universities.find((university) => university.enabled);
 
@@ -31,19 +43,14 @@ const initialForm: LoginForm = {
 };
 
 const homeRoute = '/(protected)/home' as Href;
+const registerRoute = '/(auth)/register' as Href;
 
 export default function LoginScreen(): React.JSX.Element {
   const [form, setForm] = useState<LoginForm>(initialForm);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [isUniversitySelectorOpen, setIsUniversitySelectorOpen] =
-    useState(false);
 
- const { signIn } = useAuth();
-
-  const availableUniversities = universities.filter(
-    (university) => university.enabled && university.name !== form.university,
-  );
+  const { signIn } = useAuth();
 
   function updateField(field: keyof LoginForm, value: string): void {
     setForm((currentForm) => ({
@@ -57,11 +64,6 @@ export default function LoginScreen(): React.JSX.Element {
     }));
   }
 
-  function selectUniversity(universityName: string): void {
-    updateField('university', universityName);
-    setIsUniversitySelectorOpen(false);
-  }
-
   function validateForm(): boolean {
     const nextErrors: LoginErrors = {};
 
@@ -71,7 +73,7 @@ export default function LoginScreen(): React.JSX.Element {
 
     if (!form.email.trim()) {
       nextErrors.email = 'Ingresa tu correo institucional.';
-    } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+    } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       nextErrors.email = 'Ingresa un correo válido.';
     }
 
@@ -97,7 +99,7 @@ export default function LoginScreen(): React.JSX.Element {
       setIsLoading(true);
 
       const response = await loginWithCredentials({
-        email: form.email.trim().toLowerCase(),
+        email: form.email,
         password: form.password,
       });
 
@@ -107,7 +109,7 @@ export default function LoginScreen(): React.JSX.Element {
     } catch {
       Alert.alert(
         'No se pudo iniciar sesión',
-        'Verifica tus credenciales o confirma que el backend esté activo.',
+        'El login fue recibido, pero no se pudo validar el usuario autenticado. Borra los datos de Expo Go y vuelve a iniciar sesión.',
       );
     } finally {
       setIsLoading(false);
@@ -126,61 +128,27 @@ export default function LoginScreen(): React.JSX.Element {
       <View style={styles.brandContainer}>
         <AppText style={styles.brandTitle}>Chatzitho</AppText>
 
-        <AppText variant="caption" style={styles.brandSubtitle}>
+        <AppText style={styles.brandSubtitle} variant="caption">
           Tu asistente académico inteligente
         </AppText>
       </View>
 
       <AppCard>
         <View style={styles.form}>
-          <View style={styles.fieldGroup}>
-            <AppText variant="caption">Universidad</AppText>
-
-            <Pressable
-              style={styles.selector}
-              onPress={() =>
-                setIsUniversitySelectorOpen((currentValue) => !currentValue)
-              }
-            >
-              <AppText color={colors.text.primary}>
-                {form.university || 'Selecciona tu universidad'}
-              </AppText>
-
-              <AppText variant="caption">
-                {isUniversitySelectorOpen ? '▲' : '▼'}
-              </AppText>
-            </Pressable>
-
-            {errors.university ? (
-              <AppText color={colors.status.error} variant="caption">
-                {errors.university}
-              </AppText>
-            ) : null}
-
-            {isUniversitySelectorOpen ? (
-              <View style={styles.selectorMenu}>
-                {availableUniversities.map((university) => (
-                  <Pressable
-                    key={university.id}
-                    style={styles.selectorOption}
-                    onPress={() => selectUniversity(university.name)}
-                  >
-                    <AppText color={colors.text.primary}>
-                      {university.name}
-                    </AppText>
-                  </Pressable>
-                ))}
-
-                <View style={styles.comingSoonOption}>
-                  <AppText color={colors.text.muted}>Próximamente</AppText>
-                </View>
-              </View>
-            ) : null}
-          </View>
+          <AppSelect
+            disabled={isLoading}
+            error={errors.university}
+            label="Universidad"
+            options={universityOptions}
+            placeholder="-- Seleccione --"
+            value={form.university}
+            onChange={(value) => updateField('university', value)}
+          />
 
           <AppInput
             autoCapitalize="none"
             autoCorrect={false}
+            editable={!isLoading}
             error={errors.email}
             keyboardType="email-address"
             label="Correo institucional"
@@ -190,6 +158,7 @@ export default function LoginScreen(): React.JSX.Element {
           />
 
           <AppInput
+            editable={!isLoading}
             error={errors.password}
             label="Contraseña"
             placeholder="Ingresa tu contraseña"
@@ -198,7 +167,7 @@ export default function LoginScreen(): React.JSX.Element {
             onChangeText={(value) => updateField('password', value)}
           />
 
-          <Pressable onPress={handlePasswordRecovery}>
+          <Pressable disabled={isLoading} onPress={handlePasswordRecovery}>
             <AppText color={colors.brand.primary} style={styles.recoveryText}>
               ¿Olvidaste o necesitas actualizar tu contraseña?
             </AppText>
@@ -207,8 +176,23 @@ export default function LoginScreen(): React.JSX.Element {
           <AppButton
             loading={isLoading}
             title="Ingresar"
-            onPress={handleLogin}
+            onPress={() => {
+              void handleLogin();
+            }}
           />
+
+          <Pressable
+            disabled={isLoading}
+            style={styles.registerLinkContainer}
+            onPress={() => router.push(registerRoute)}
+          >
+            <AppText color={colors.text.muted} variant="caption">
+              ¿No tienes cuenta?{' '}
+              <AppText color={colors.brand.primary} variant="caption">
+                Regístrate
+              </AppText>
+            </AppText>
+          </Pressable>
         </View>
       </AppCard>
     </AppScreen>
@@ -217,8 +201,8 @@ export default function LoginScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   content: {
-    justifyContent: 'center',
     flexGrow: 1,
+    justifyContent: 'center',
     gap: spacing.xl,
   },
 
@@ -243,43 +227,13 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
 
-  fieldGroup: {
-    gap: spacing.sm,
-  },
-
-  selector: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.background.secondary,
-    paddingHorizontal: spacing.lg,
-  },
-
-  selectorMenu: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.background.secondary,
-  },
-
-  selectorOption: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-
-  comingSoonOption: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-
   recoveryText: {
     textAlign: 'right',
     fontSize: typography.size.sm,
     fontWeight: typography.weight.semibold,
+  },
+
+  registerLinkContainer: {
+    alignItems: 'center',
   },
 });
