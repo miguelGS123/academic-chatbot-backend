@@ -1,22 +1,26 @@
 version: "3.9"
 
 services:
-
   auth-service:
     build:
-      context: ./services/auth-service
-
+      context: ./backend/services/auth-service
     container_name: auth-service
-
     ports:
-      - "8000:8000"
-
+      - "8001:8000"
     env_file:
-      - ./services/auth-service/.env
-
+      - ./backend/services/auth-service/.env
     volumes:
-      - ./services/auth-service:/app
-    
-
+      - ./backend/services/auth-service:/app
     restart: always
-    
+
+  study-service:
+    build:
+      context: ./backend/services/study-service
+    container_name: study-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./backend/services/study-service/.env
+    volumes:
+      - ./backend/services/study-service:/app
+    restart: always
