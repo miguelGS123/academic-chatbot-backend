@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -23,21 +25,34 @@ export function AppScreen({
   if (scrollable) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-          contentContainerStyle={[styles.content, contentStyle]}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+          style={styles.keyboardView}
         >
-          {children}
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={[styles.content, contentStyle]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.content, styles.flexContent, contentStyle]}>
-        {children}
-      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        style={styles.keyboardView}
+      >
+        <View style={[styles.content, styles.flexContent, contentStyle]}>
+          {children}
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -46,6 +61,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+
+  keyboardView: {
+    flex: 1,
   },
 
   content: {
