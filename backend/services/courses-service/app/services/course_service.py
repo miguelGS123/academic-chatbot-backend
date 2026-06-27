@@ -27,11 +27,18 @@ class CourseService:
                 detail="Curso no encontrado.",
             )
 
-        schedules = self.repository.get_course_schedules(course_id=course.id)
+        section = self.repository.get_active_section_by_course(course_id=course.id)
+
+        schedules = self.repository.get_course_schedules(
+            course_id=course.id,
+            section_id=section.id if section else None,
+        )
+
         syllabus = self.repository.get_course_syllabus(course_id=course.id)
 
         return {
             "course": course,
+            "section": section,
             "schedules": schedules,
             "syllabus": syllabus,
         }
@@ -45,7 +52,12 @@ class CourseService:
                 detail="Curso no encontrado.",
             )
 
-        return self.repository.get_course_schedules(course_id=course.id)
+        section = self.repository.get_active_section_by_course(course_id=course.id)
+
+        return self.repository.get_course_schedules(
+            course_id=course.id,
+            section_id=section.id if section else None,
+        )
 
     def get_course_syllabus(self, course_reference: str):
         course = self.repository.get_course_by_code_or_name(course_reference)

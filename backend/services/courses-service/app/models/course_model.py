@@ -1,5 +1,6 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -27,6 +28,26 @@ class Course(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CourseSection(Base):
+    __tablename__ = "course_sections"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    course_id = Column(
+        BigInteger,
+        ForeignKey("courses.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    section_code = Column(String(20), nullable=False)
+    academic_period = Column(String(20), nullable=False)
+    teacher_name = Column(String(200), nullable=True)
+    capacity = Column(Integer, nullable=True)
+    enrolled_count = Column(Integer, default=0)
+    modality = Column(String(50), nullable=True)
+    campus = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class StudentCourse(Base):
     __tablename__ = "student_courses"
 
@@ -36,6 +57,11 @@ class StudentCourse(Base):
         BigInteger,
         ForeignKey("courses.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    course_section_id = Column(
+        BigInteger,
+        ForeignKey("course_sections.id", ondelete="SET NULL"),
+        nullable=True,
     )
     academic_period = Column(String(20), nullable=True)
     status = Column(String(30), default="enrolled")
@@ -52,6 +78,11 @@ class CourseSchedule(Base):
         BigInteger,
         ForeignKey("courses.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    course_section_id = Column(
+        BigInteger,
+        ForeignKey("course_sections.id", ondelete="CASCADE"),
+        nullable=True,
     )
     day_of_week = Column(String(20), nullable=False)
     start_time = Column(Time, nullable=False)
