@@ -24,3 +24,67 @@ services:
     volumes:
       - ./backend/services/study-service:/app
     restart: always
+
+  courses-service:
+    build:
+      context: ./backend/services/courses-service
+    container_name: courses-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./backend/services/courses-service/.env
+    volumes:
+      - ./backend/services/courses-service:/app
+    restart: always
+
+  questions-service:
+    build:
+      context: ./backend/services/questions-service
+    container_name: questions-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - ./backend/services/questions-service/.env
+    volumes:
+      - ./backend/services/questions-service:/app
+    restart: always
+
+  payments-service:
+    build:
+      context: ./backend/services/payments-service
+    container_name: payments-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./backend/services/payments-service/.env
+    volumes:
+      - ./backend/services/payments-service:/app
+    restart: always
+
+  teachers-service:
+    build:
+      context: ./backend/services/teachers-service
+    container_name: teachers-service
+    ports:
+      - "8006:8006"
+    env_file:
+      - ./backend/services/teachers-service/.env
+    volumes:
+      - ./backend/services/teachers-service:/app
+    restart: always
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/gateway/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - study-service
+      - courses-service
+      - questions-service
+      - payments-service
+      - teachers-service
+    restart: always
