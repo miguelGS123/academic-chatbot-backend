@@ -1,7 +1,15 @@
-export const env = {
-  apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
-} as const;
+type Environment = {
+  apiBaseUrl: string;
+};
 
-if (!env.apiBaseUrl) {
-  throw new Error('Missing EXPO_PUBLIC_API_BASE_URL environment variable.');
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+if (!apiBaseUrl) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_API_BASE_URL environment variable.',
+  );
 }
+
+export const env: Environment = {
+  apiBaseUrl,
+};
