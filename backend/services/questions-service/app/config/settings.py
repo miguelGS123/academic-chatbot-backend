@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    GATEWAY_BASE_URL: str = "http://api-gateway:8000"
 
     model_config = ConfigDict(
         env_file=".env",

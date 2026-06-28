@@ -2,13 +2,17 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.repositories.question_repository import QuestionRepository
+from app.services.gateway_client import GatewayClient
 from app.services.gemini_service import GeminiService
+from app.services.intent_router import IntentRouter
 
 
 class QuestionService:
     def __init__(self, db: Session):
         self.repository = QuestionRepository(db)
         self.gemini_service = GeminiService()
+        self.intent_router = IntentRouter()
+        self.gateway_client = GatewayClient()
 
     def ask_question(
         self,
@@ -38,9 +42,12 @@ class QuestionService:
                 title=question[:80],
             )
 
+        intents = self.intent_router.classify(question)
+
         context = self._build_context(
             user=user,
             question=question,
+            intents=intents,
         )
 
         answer = self.gemini_service.generate_answer(
@@ -83,51 +90,73 @@ class QuestionService:
 
         return self.repository.get_messages_by_session(session_id=session_id)
 
-    def _build_context(self, user, question: str) -> str:
+    def _build_context(self, user, question: str, intents: list[str]) -> str:
         context_parts: list[str] = []
 
         context_parts.append(
             f"""
 DATOS DEL ESTUDIANTE:
+ID: {user.id}
 Nombre: {user.full_name}
 Carrera: {user.career}
 Ciclo actual: {user.cycle}
 Rol: {user.role}
+
+PREGUNTA ORIGINAL:
+{question}
+
+INTENCIONES DETECTADAS:
+{", ".join(intents)}
 """.strip()
         )
 
-        question_lower = question.lower()
-
-        if self._is_next_cycle_question(question_lower):
-            next_cycle = user.cycle + 1 if user.cycle else None
-
-            if next_cycle and next_cycle <= 10:
-                courses = self.repository.get_curriculum_by_cycle(
-                    career=user.career,
-                    cycle=next_cycle,
+        if "courses" in intents:
+            context_parts.append(
+                self._format_context_block(
+                    "CURSOS, HORARIOS Y SÍLABOS DEL ESTUDIANTE",
+                    self.gateway_client.get_student_courses(user.id),
                 )
+            )
 
-                courses_text = self._format_courses(courses)
+        if "payments" in intents:
+            context_parts.append(
+                self._format_context_block(
+                    "RESUMEN FINANCIERO DEL ESTUDIANTE",
+                    self.gateway_client.get_payments_summary(user.id),
+                )
+            )
 
-                context_parts.append(
-                    f"""
-CONSULTA DETECTADA:
-El estudiante pregunta por los cursos del próximo ciclo.
+        if "teachers" in intents:
+            context_parts.append(
+                self._format_context_block(
+                    "DOCENTES ASIGNADOS AL ESTUDIANTE",
+                    self.gateway_client.get_student_teachers(user.id),
+                )
+            )
 
-Ciclo actual: {user.cycle}
-Próximo ciclo: {next_cycle}
+        if "study" in intents:
+            context_parts.append(
+                self._format_context_block(
+                    "INFORMACIÓN ACADÉMICA Y PRÓXIMO CICLO",
+                    self.gateway_client.get_next_cycle_courses(user.id),
+                )
+            )
 
-CURSOS DEL PRÓXIMO CICLO:
-{courses_text}
+        if "certifications" in intents:
+            context_parts.append(
+                self._format_context_block(
+                    "PLATAFORMAS Y CERTIFICACIONES RECOMENDADAS",
+                    self.gateway_client.get_learning_platforms(),
+                )
+            )
+
+        if "general" in intents and len(intents) == 1:
+            context_parts.append(
+                """
+CONTEXTO GENERAL:
+El estudiante realizó una consulta general. Responde de forma breve, amable y orientada al entorno académico.
 """.strip()
-                )
-            else:
-                context_parts.append(
-                    """
-CONSULTA DETECTADA:
-El estudiante pregunta por el próximo ciclo, pero ya se encuentra en el último ciclo o no tiene ciclo registrado.
-""".strip()
-                )
+            )
 
         knowledge_items = self.repository.get_active_knowledge_base(limit=8)
 
@@ -148,40 +177,8 @@ BASE DE CONOCIMIENTO INSTITUCIONAL:
 
         return "\n\n".join(context_parts)
 
-    def _is_next_cycle_question(self, question: str) -> bool:
-        keywords = [
-            "próximo ciclo",
-            "proximo ciclo",
-            "siguiente ciclo",
-            "cursos tendré",
-            "cursos tendre",
-            "qué cursos llevaré",
-            "que cursos llevare",
-            "cursos del ciclo siguiente",
-        ]
-
-        return any(keyword in question for keyword in keywords)
-
-    def _format_courses(self, courses) -> str:
-        if not courses:
-            return "No se encontraron cursos registrados para ese ciclo."
-
-        lines = []
-
-        for course in courses:
-            prerequisites = ", ".join(course.prerequisites or [])
-
-            if not prerequisites:
-                prerequisites = "Sin prerrequisitos registrados"
-
-            lines.append(
-                (
-                    f"- {course.course_code}: {course.course_name} | "
-                    f"Créditos: {course.credits} | "
-                    f"Modalidad: {course.modality} | "
-                    f"Tipo: {course.course_type} | "
-                    f"Prerrequisitos: {prerequisites}"
-                )
-            )
-
-        return "\n".join(lines)
+    def _format_context_block(self, title: str, data) -> str:
+        return f"""
+{title}:
+{data}
+""".strip()
