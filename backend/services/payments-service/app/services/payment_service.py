@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.repositories.payment_repository import PaymentRepository
@@ -135,7 +136,7 @@ class PaymentService:
         if pending_payments:
             next_payment = sorted(
                 pending_payments,
-                key=lambda item: item["due_date"],
+                key=lambda item: item["due_date"] or date.max,
             )[0]
 
         financial_status = self._resolve_financial_status(
@@ -158,6 +159,58 @@ class PaymentService:
             "pending_payments": pending_payments,
             "overdue_payments": overdue_payments,
             "payment_history": payment_history,
+        }
+
+    def pay_payment(
+        self,
+        payment_id: int,
+        payment_method_code: str,
+    ):
+        payment = self.repository.get_payment_by_id(payment_id=payment_id)
+
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pago no encontrado.",
+            )
+
+        paid_payment_ids = self.repository.get_paid_payment_ids(
+            user_id=payment.user_id,
+        )
+
+        if payment.id in paid_payment_ids or payment.status == "paid":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Este pago ya fue registrado como pagado.",
+            )
+
+        method = self.repository.get_payment_method_by_code(payment_method_code)
+
+        if not method:
+            method = self.repository.get_default_payment_method()
+
+        operation_code = self._generate_operation_code(payment_id=payment.id)
+
+        history = self.repository.create_payment_history(
+            user_id=payment.user_id,
+            payment_id=payment.id,
+            amount_paid=payment.amount,
+            operation_code=operation_code,
+            payment_method_id=method.id if method else None,
+        )
+
+        self.repository.mark_payment_as_paid(payment)
+        self.repository.commit()
+        self.repository.refresh(history)
+
+        return {
+            "payment_id": payment.id,
+            "user_id": payment.user_id,
+            "amount_paid": history.amount_paid,
+            "operation_code": history.operation_code,
+            "paid_at": history.paid_at,
+            "status": history.status,
+            "message": "Pago registrado correctamente.",
         }
 
     def _build_payment_responses(
@@ -238,3 +291,7 @@ class PaymentService:
             return "Tienes pagos pendientes, pero aún no vencidos."
 
         return "Estás al día con tus pagos."
+
+    def _generate_operation_code(self, payment_id: int) -> str:
+        today = date.today().strftime("%Y%m%d")
+        return f"PAY-{today}-{payment_id}"

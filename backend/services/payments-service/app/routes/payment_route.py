@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.payment_schema import (
     AccountSummaryResponse,
+    PayPaymentRequest,
+    PayPaymentResponse,
     PaymentHistoryResponse,
     PaymentResponse,
 )
@@ -96,4 +98,18 @@ def get_account_summary(
     return service.get_account_summary(
         user_id=user_id,
         academic_period_code=academic_period_code,
+    )
+
+
+@router.post("/pay/{payment_id}", response_model=PayPaymentResponse)
+def pay_payment(
+    payment_id: int,
+    payload: PayPaymentRequest,
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.pay_payment(
+        payment_id=payment_id,
+        payment_method_code=payload.payment_method_code,
     )

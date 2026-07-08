@@ -1,8 +1,12 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { PaymentSummary } from '@/features/payments/types/payment.types';
+import type {
+  PaymentItem,
+  PaymentSummary,
+} from '@/features/payments/types/payment.types';
 import {
+  AppButton,
   AppText,
   Badge,
   InfoItem,
@@ -13,108 +17,143 @@ import { colors, radius, spacing } from '@/shared/theme';
 
 type PaymentSummaryCardProps = {
   summary: PaymentSummary;
+  onPayPress: (payment: PaymentItem) => void;
 };
 
-function formatMoney(value?: number | string): string {
-  const numericValue = Number(value ?? 0);
-
-  return `S/ ${numericValue.toFixed(2)}`;
+function formatMoney(value?: number | string | null): string {
+  return `S/ ${Number(value ?? 0).toFixed(2)}`;
 }
 
-function normalizeStatus(status?: string | null): string {
-  if (!status) return 'Pendiente';
+function formatDate(value?: string | null): string {
+  if (!value) return 'N/R';
 
-  const labels: Record<string, string> = {
-    pending: 'Pendiente',
-    paid: 'Pagado',
-    overdue: 'Vencido',
-    cancelled: 'Cancelado',
-  };
-
-  return labels[status.toLowerCase()] ?? status;
+  return value.slice(0, 10);
 }
 
 export function PaymentSummaryCard({
   summary,
+  onPayPress,
 }: PaymentSummaryCardProps): React.JSX.Element {
-  const pendingPayments = summary.pending_payments ?? [];
-  const paidPayments = summary.paid_payments ?? [];
-  const overduePayments = summary.overdue_payments ?? [];
+  const nextPayablePayment =
+    summary.overdue_payments[0] ?? summary.pending_payments[0] ?? null;
 
   return (
     <>
       <SectionCard title="Resumen financiero">
         <View style={styles.metricsGrid}>
-          <MetricCard
-            label="Total"
-            value={formatMoney(summary.total_amount)}
-            helper="Monto del periodo"
-          />
-
-          <MetricCard
-            label="Pagado"
-            value={formatMoney(summary.paid_amount)}
-            helper="Pagos registrados"
-          />
-
-          <MetricCard
-            label="Pendiente"
-            value={formatMoney(summary.pending_amount)}
-            helper="Por cancelar"
-          />
-
-          <MetricCard
-            label="Vencido"
-            value={formatMoney(summary.overdue_amount)}
-            helper="Fuera de fecha"
-          />
+          <MetricCard label="Total" value={formatMoney(summary.cycle_total_amount)} />
+          <MetricCard label="Pagado" value={formatMoney(summary.total_paid)} />
+          <MetricCard label="Pendiente" value={formatMoney(summary.total_pending)} />
+          <MetricCard label="Vencido" value={formatMoney(summary.total_overdue)} />
         </View>
+
+        <AppText color={colors.text.secondary} variant="caption">
+          {summary.financial_status}
+        </AppText>
+      </SectionCard>
+
+      <SectionCard title="Centro de pagos">
+        {nextPayablePayment ? (
+          <View style={styles.paymentItem}>
+            <View style={styles.paymentHeader}>
+              <AppText color={colors.text.primary} variant="body">
+                {nextPayablePayment.concept}
+              </AppText>
+
+              <Badge
+                label={
+                  nextPayablePayment.calculated_status === 'overdue'
+                    ? 'Vencido'
+                    : 'Pendiente'
+                }
+                variant={
+                  nextPayablePayment.calculated_status === 'overdue'
+                    ? 'error'
+                    : 'warning'
+                }
+              />
+            </View>
+
+            <View style={styles.infoGrid}>
+              <InfoItem
+                label="Monto"
+                value={formatMoney(nextPayablePayment.amount)}
+              />
+
+              <InfoItem
+                label="Vencimiento"
+                value={formatDate(nextPayablePayment.due_date)}
+              />
+            </View>
+
+            <AppButton
+              title="Pagar ahora"
+              onPress={() => onPayPress(nextPayablePayment)}
+            />
+          </View>
+        ) : (
+          <View style={styles.upToDateBox}>
+            <Badge label="Al día" variant="success" />
+
+            <AppText color={colors.text.primary} variant="body">
+              No tienes deudas pendientes.
+            </AppText>
+
+            <AppText color={colors.text.secondary} variant="caption">
+              Todos tus pagos del periodo {summary.academic_period_name ?? 'actual'} están registrados.
+            </AppText>
+          </View>
+        )}
       </SectionCard>
 
       <SectionCard title="Pagos pendientes">
-        {pendingPayments.length > 0 ? (
+        {summary.pending_payments.length > 0 ? (
           <View style={styles.list}>
-            {pendingPayments.map((payment, index) => (
-              <View key={`${payment.concept}-${index}`} style={styles.paymentItem}>
+            {summary.pending_payments.map((payment) => (
+              <View key={payment.id} style={styles.paymentItem}>
                 <View style={styles.paymentHeader}>
                   <AppText color={colors.text.primary} variant="body">
-                    {payment.concept ?? 'Concepto no registrado'}
+                    {payment.concept}
                   </AppText>
 
-                  <Badge label={normalizeStatus(payment.status)} variant="warning" />
+                  <Badge label="Pendiente" variant="warning" />
                 </View>
 
                 <View style={styles.infoGrid}>
                   <InfoItem label="Monto" value={formatMoney(payment.amount)} />
-                  <InfoItem label="Vence" value={payment.due_date ?? 'N/R'} />
+                  <InfoItem label="Vence" value={formatDate(payment.due_date)} />
                 </View>
+
+                <AppButton title="Pagar" onPress={() => onPayPress(payment)} />
               </View>
             ))}
           </View>
         ) : (
           <AppText color={colors.text.muted} variant="caption">
-            No tienes pagos pendientes registrados.
+            No tienes pagos pendientes.
           </AppText>
         )}
       </SectionCard>
 
       <SectionCard title="Pagos vencidos">
-        {overduePayments.length > 0 ? (
+        {summary.overdue_payments.length > 0 ? (
           <View style={styles.list}>
-            {overduePayments.map((payment, index) => (
-              <View key={`${payment.concept}-${index}`} style={styles.paymentItem}>
+            {summary.overdue_payments.map((payment) => (
+              <View key={payment.id} style={styles.paymentItem}>
                 <View style={styles.paymentHeader}>
                   <AppText color={colors.text.primary} variant="body">
-                    {payment.concept ?? 'Concepto no registrado'}
+                    {payment.concept}
                   </AppText>
 
-                  <Badge label={normalizeStatus(payment.status)} variant="error" />
+                  <Badge label="Vencido" variant="error" />
                 </View>
 
                 <View style={styles.infoGrid}>
                   <InfoItem label="Monto" value={formatMoney(payment.amount)} />
-                  <InfoItem label="Vence" value={payment.due_date ?? 'N/R'} />
+                  <InfoItem label="Venció" value={formatDate(payment.due_date)} />
                 </View>
+
+                <AppButton title="Pagar deuda" onPress={() => onPayPress(payment)} />
               </View>
             ))}
           </View>
@@ -125,29 +164,37 @@ export function PaymentSummaryCard({
         )}
       </SectionCard>
 
-      <SectionCard title="Historial de pagos">
-        {paidPayments.length > 0 ? (
+      <SectionCard title="Historial y boletas">
+        {summary.payment_history.length > 0 ? (
           <View style={styles.list}>
-            {paidPayments.map((payment, index) => (
-              <View key={`${payment.concept}-${index}`} style={styles.paymentItem}>
+            {summary.payment_history.map((payment) => (
+              <View key={payment.id} style={styles.paymentItem}>
                 <View style={styles.paymentHeader}>
                   <AppText color={colors.text.primary} variant="body">
-                    {payment.concept ?? 'Concepto no registrado'}
+                    Operación {payment.operation_code ?? 'N/R'}
                   </AppText>
 
-                  <Badge label={normalizeStatus(payment.status)} variant="success" />
+                  <Badge label="Pagado" variant="success" />
                 </View>
 
                 <View style={styles.infoGrid}>
-                  <InfoItem label="Monto" value={formatMoney(payment.amount)} />
-                  <InfoItem label="Fecha" value={payment.due_date ?? 'N/R'} />
+                  <InfoItem label="Monto" value={formatMoney(payment.amount_paid)} />
+                  <InfoItem label="Fecha" value={formatDate(payment.paid_at)} />
+                  <InfoItem
+                    label="Método"
+                    value={payment.payment_method ?? 'No registrado'}
+                  />
+                  <InfoItem
+                    label="Boleta"
+                    value={payment.receipt_url ? 'Disponible' : 'Sin PDF'}
+                  />
                 </View>
               </View>
             ))}
           </View>
         ) : (
           <AppText color={colors.text.muted} variant="caption">
-            Aún no hay pagos registrados como cancelados.
+            Aún no tienes pagos registrados.
           </AppText>
         )}
       </SectionCard>
@@ -183,5 +230,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+
+  upToDateBox: {
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.status.success,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.md,
   },
 });

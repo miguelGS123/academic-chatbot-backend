@@ -14,10 +14,10 @@ class GatewayClient:
     def get_payments_summary(self, user_id: int):
         return self._safe_get(f"/api/v1/payments/summary/{user_id}")
 
-    def get_student_teachers(self, user_id: int, academic_period: str = "202601"):
+    def get_student_teachers(self, user_id: int):
         return self._safe_get(
             f"/api/v1/teachers/my-teachers/{user_id}",
-            params={"academic_period": academic_period},
+            params={"academic_period": settings.DEFAULT_ACADEMIC_PERIOD},
         )
 
     def get_next_cycle_courses(self, user_id: int):
@@ -25,6 +25,26 @@ class GatewayClient:
 
     def get_learning_platforms(self):
         return self._safe_get("/api/v1/study/learning-platforms")
+
+    def get_full_student_context(self, user_id: int, intents: list[str]):
+        should_load_all = "general" in intents or "all" in intents
+
+        context = {}
+
+        if should_load_all or "courses" in intents or "study" in intents:
+            context["courses"] = self.get_student_courses(user_id)
+
+        if should_load_all or "payments" in intents:
+            context["payments"] = self.get_payments_summary(user_id)
+
+        if should_load_all or "teachers" in intents or "courses" in intents:
+            context["teachers"] = self.get_student_teachers(user_id)
+
+        if should_load_all or "study" in intents or "certifications" in intents:
+            context["next_cycle"] = self.get_next_cycle_courses(user_id)
+            context["learning_platforms"] = self.get_learning_platforms()
+
+        return context
 
     def _safe_get(self, path: str, params: dict | None = None):
         url = f"{self.base_url}{path}"

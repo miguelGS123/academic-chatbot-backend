@@ -24,6 +24,7 @@ export const endpoints = {
 
   payments: {
     summary: (userId: number) => `/api/v1/payments/summary/${userId}`,
+    pay: (paymentId: number) => `/api/v1/payments/pay/${paymentId}`,
   },
 
   teachers: {

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
     GATEWAY_BASE_URL: str = "http://api-gateway:8000"
+    DEFAULT_ACADEMIC_PERIOD: str = "202601"
 
     model_config = ConfigDict(
         env_file=".env",

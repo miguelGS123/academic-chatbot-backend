@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { GlobalChat } from '@/features/questions/components/GlobalChat';
+import {
+  GlobalChat,
+  type GlobalChatRef,
+} from '@/features/questions/components/GlobalChat';
 import { SuggestedQuestionCard } from '@/features/questions/components/SuggestedQuestionCard';
 import {
   AppScreen,
@@ -24,6 +27,7 @@ const suggestedQuestions = [
 
 export default function QuestionsScreen(): React.JSX.Element {
   const { user } = useAuth();
+  const chatRef = useRef<GlobalChatRef>(null);
 
   return (
     <AppScreen>
@@ -44,8 +48,7 @@ export default function QuestionsScreen(): React.JSX.Element {
               key={question}
               question={question}
               onPress={() => {
-                // Por ahora solo mostramos sugerencias visuales.
-                // Luego las conectamos para enviar automáticamente la pregunta.
+                chatRef.current?.sendSuggestedQuestion(question);
               }}
             />
           ))}
@@ -53,7 +56,7 @@ export default function QuestionsScreen(): React.JSX.Element {
       </SectionCard>
 
       {user?.id ? (
-        <GlobalChat userId={user.id} />
+        <GlobalChat ref={chatRef} userId={user.id} />
       ) : (
         <EmptyState
           title="Usuario no disponible"

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PaymentResponse(BaseModel):
@@ -46,3 +46,20 @@ class AccountSummaryResponse(BaseModel):
     pending_payments: list[PaymentResponse]
     overdue_payments: list[PaymentResponse]
     payment_history: list[PaymentHistoryResponse]
+
+
+class PayPaymentRequest(BaseModel):
+    payment_method_code: str = Field(default="card", min_length=2, max_length=50)
+    card_holder: str = Field(..., min_length=3, max_length=120)
+    card_last_four: str = Field(..., min_length=4, max_length=4)
+    confirmation_note: str | None = Field(default=None, max_length=250)
+
+
+class PayPaymentResponse(BaseModel):
+    payment_id: int
+    user_id: int
+    amount_paid: Decimal
+    operation_code: str
+    paid_at: datetime
+    status: str
+    message: str

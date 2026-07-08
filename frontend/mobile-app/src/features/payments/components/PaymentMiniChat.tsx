@@ -103,7 +103,8 @@ export function PaymentMiniChat({
         {messages.length === 0 ? (
           <View style={styles.emptyChat}>
             <AppText color={colors.text.muted} variant="caption">
-              Ejemplos: ¿cuánto debo?, ¿tengo pagos vencidos?, ¿qué debo pagar primero?
+              Ejemplos: ¿cuánto debo?, ¿tengo pagos vencidos?, ¿qué debo pagar
+              primero?
             </AppText>
           </View>
         ) : (
@@ -169,14 +170,19 @@ function buildPaymentContextQuestion(
 Estás respondiendo dentro del módulo Pagos.
 
 Datos financieros disponibles:
-- Periodo: ${summary?.academic_period ?? 'No registrado'}
-- Total: ${summary?.total_amount ?? 0}
-- Pagado: ${summary?.paid_amount ?? 0}
-- Pendiente: ${summary?.pending_amount ?? 0}
-- Vencido: ${summary?.overdue_amount ?? 0}
+- Periodo: ${summary?.academic_period_code ?? 'No registrado'}
+- Nombre del periodo: ${summary?.academic_period_name ?? 'No registrado'}
+- Total del ciclo: ${summary?.cycle_total_amount ?? 0}
+- Pagado: ${summary?.total_paid ?? 0}
+- Pendiente: ${summary?.total_pending ?? 0}
+- Vencido: ${summary?.total_overdue ?? 0}
+- Estado financiero: ${summary?.financial_status ?? 'No registrado'}
+- Próximo pago: ${summary?.next_payment_concept ?? 'No registrado'}
+- Monto próximo pago: ${summary?.next_payment_amount ?? 0}
+- Fecha próximo pago: ${summary?.next_payment_due_date ?? 'No registrado'}
 - Pagos pendientes: ${JSON.stringify(summary?.pending_payments ?? [])}
 - Pagos vencidos: ${JSON.stringify(summary?.overdue_payments ?? [])}
-- Historial pagado: ${JSON.stringify(summary?.paid_payments ?? [])}
+- Historial de pagos: ${JSON.stringify(summary?.payment_history ?? [])}
 
 Pregunta del estudiante:
 ${question}
@@ -184,7 +190,9 @@ ${question}
 Instrucciones:
 - Responde directo y breve.
 - No repitas todo el resumen financiero.
-- Si pregunta cuánto debe, responde el monto pendiente y vencido si aplica.
+- Si pregunta cuánto debe, responde el total pendiente y el total vencido si aplica.
+- Si pregunta si ya pagó, revisa el historial de pagos.
+- Si pregunta por boleta o comprobante, usa operation_code si está disponible.
 - Si no hay información suficiente, dilo claramente.
 - No inventes pagos, fechas, descuentos, multas ni comprobantes.
 `.trim();
