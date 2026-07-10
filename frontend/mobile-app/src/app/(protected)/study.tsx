@@ -5,32 +5,34 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LearningPlatformCard } from '@/features/study/components/LearningPlatformCard';
 import { StudyMiniChat } from '@/features/study/components/StudyMiniChat';
 import { useStudyDashboard } from '@/features/study/hooks/useStudyDashboard';
-
 import {
   AppScreen,
   AppText,
   EmptyState,
   ErrorState,
   LoadingState,
-  MetricCard,
   ModuleHeader,
   SectionCard,
 } from '@/shared/components';
-
-import { colors, spacing } from '@/shared/theme';
+import { colors, radius, spacing } from '@/shared/theme';
 
 export default function StudyScreen(): React.JSX.Element {
   const { user } = useAuth();
 
-  const { platforms, nextCycle, isLoading, error, refetch } =
-    useStudyDashboard(user?.id);
+  const {
+    platforms,
+    nextCycle,
+    isLoading,
+    error,
+    refetch,
+  } = useStudyDashboard(user?.id);
 
   if (isLoading) {
     return (
       <AppScreen>
         <ModuleHeader
           title="Estudio"
-          subtitle="Consulta tu avance académico, próximo ciclo y certificaciones."
+          subtitle="Consulta tu avance, próximo ciclo y certificaciones."
         />
 
         <LoadingState message="Cargando información académica..." />
@@ -43,7 +45,7 @@ export default function StudyScreen(): React.JSX.Element {
       <AppScreen>
         <ModuleHeader
           title="Estudio"
-          subtitle="Consulta tu avance académico, próximo ciclo y certificaciones."
+          subtitle="Consulta tu avance, próximo ciclo y certificaciones."
         />
 
         <ErrorState message={error} onRetry={refetch} />
@@ -55,38 +57,42 @@ export default function StudyScreen(): React.JSX.Element {
     <AppScreen>
       <ModuleHeader
         title="Estudio"
-        subtitle="Consulta tu avance académico, próximo ciclo y certificaciones."
+        subtitle="Consulta tu avance, próximo ciclo y certificaciones."
       />
 
-      <SectionCard title="Resumen académico">
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            label="Ciclo actual"
-            value={String(user?.cycle ?? '-')}
-            helper={user?.career ?? 'Carrera no registrada'}
-          />
+      <SectionCard title="Estado académico">
+        <View style={styles.statusBlock}>
+          <View style={styles.statusRow}>
+            <AppText color={colors.text.secondary} variant="caption">
+              Ciclo actual
+            </AppText>
 
-          <MetricCard
-            label="Estado"
-            value={user?.cycle && user.cycle >= 10 ? 'Último ciclo' : 'En curso'}
-            helper="Según ciclo registrado"
-          />
+            <AppText variant="body">
+              {String(user?.cycle ?? 'No registrado')}
+            </AppText>
+          </View>
 
-          <MetricCard
-            label="Próximo ciclo"
-            value={
-              nextCycle?.next_cycle
-                ? String(nextCycle.next_cycle)
-                : 'No aplica'
-            }
-            helper="Estimación académica"
-          />
+          <View style={styles.statusRow}>
+            <AppText color={colors.text.secondary} variant="caption">
+              Carrera
+            </AppText>
 
-          <MetricCard
-            label="Plataformas"
-            value={String(platforms.length)}
-            helper="Recomendadas"
-          />
+            <AppText variant="body">
+              {user?.career ?? 'No registrada'}
+            </AppText>
+          </View>
+
+          <View style={styles.statusRow}>
+            <AppText color={colors.text.secondary} variant="caption">
+              Estado
+            </AppText>
+
+            <AppText variant="body">
+              {user?.cycle && user.cycle >= 10
+                ? 'Último ciclo'
+                : 'En curso'}
+            </AppText>
+          </View>
         </View>
       </SectionCard>
 
@@ -100,10 +106,18 @@ export default function StudyScreen(): React.JSX.Element {
         {nextCycle?.courses && nextCycle.courses.length > 0 ? (
           <View style={styles.list}>
             {nextCycle.courses.map((course) => (
-              <View key={course.course_code} style={styles.coursePreview}>
-                <AppText variant="body">{course.course_name}</AppText>
+              <View
+                key={course.course_code}
+                style={styles.coursePreview}
+              >
+                <AppText variant="body">
+                  {course.course_name}
+                </AppText>
 
-                <AppText color={colors.text.secondary} variant="caption">
+                <AppText
+                  color={colors.text.secondary}
+                  variant="caption"
+                >
                   {course.course_code} · Ciclo {course.cycle} ·{' '}
                   {course.credits ?? 'N/R'} créditos
                 </AppText>
@@ -112,23 +126,27 @@ export default function StudyScreen(): React.JSX.Element {
           </View>
         ) : (
           <AppText color={colors.text.muted} variant="caption">
-            No hay cursos de próximo ciclo disponibles para mostrar.
+            No hay cursos de próximo ciclo disponibles.
           </AppText>
         )}
       </SectionCard>
 
       <View style={styles.sectionHeader}>
-        <AppText variant="sectionTitle">Certificaciones recomendadas</AppText>
+        <AppText variant="sectionTitle">
+          Certificaciones recomendadas
+        </AppText>
 
         <AppText color={colors.text.secondary} variant="caption">
-          Plataformas alineadas a Ingeniería de Sistemas, cloud, redes,
-          seguridad, backend, datos y DevOps.
+          Plataformas alineadas con tu carrera y ciclo académico.
         </AppText>
       </View>
 
       {platforms.length > 0 ? (
         platforms.map((platform) => (
-          <LearningPlatformCard key={platform.id} item={platform} />
+          <LearningPlatformCard
+            key={platform.id}
+            item={platform}
+          />
         ))
       ) : (
         <EmptyState
@@ -151,10 +169,15 @@ export default function StudyScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  statusBlock: {
     gap: spacing.md,
+  },
+
+  statusRow: {
+    gap: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.subtle,
+    paddingBottom: spacing.sm,
   },
 
   list: {
@@ -163,7 +186,7 @@ const styles = StyleSheet.create({
 
   coursePreview: {
     gap: spacing.xs,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border.subtle,
     backgroundColor: colors.background.secondary,
@@ -172,6 +195,5 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     gap: spacing.xs,
-    marginTop: spacing.md,
   },
 });

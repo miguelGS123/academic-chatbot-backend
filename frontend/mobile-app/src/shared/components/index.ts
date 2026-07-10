@@ -17,6 +17,5 @@ export { Chip } from './ui/Chip';
 export { Divider } from './ui/Divider';
 export { FloatingAIButton } from './ui/FloatingAIButton';
 export { InfoItem } from './ui/InfoItem';
-export { MetricCard } from './ui/MetricCard';
 export { SearchBar } from './ui/SearchBar';
 export { SectionCard } from './ui/SectionCard';

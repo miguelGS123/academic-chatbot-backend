@@ -1,10 +1,13 @@
 import { endpoints } from '@/config/endpoints';
-import { apiClient } from '@/shared/services/api-client';
 
 import type {
   AskQuestionPayload,
   AskQuestionResponse,
+  ChatMessage,
+  ChatSession,
 } from '@/features/questions/types/question.types';
+
+import { apiClient } from '@/shared/services/api-client';
 
 export async function askQuestion(
   payload: AskQuestionPayload,
@@ -14,4 +17,20 @@ export async function askQuestion(
     question: payload.question,
     session_id: payload.session_id ?? null,
   });
+}
+
+export async function getUserQuestionSessions(
+  userId: number,
+): Promise<ChatSession[]> {
+  return apiClient.get<ChatSession[]>(
+    endpoints.questions.sessionsByUser(userId),
+  );
+}
+
+export async function getQuestionSessionMessages(
+  sessionId: number,
+): Promise<ChatMessage[]> {
+  return apiClient.get<ChatMessage[]>(
+    endpoints.questions.messagesBySession(sessionId),
+  );
 }

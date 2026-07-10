@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { TeacherCard } from '@/features/teachers/components/TeacherCard';
+import { TeacherMiniChat } from '@/features/teachers/components/TeacherMiniChat';
 import { useMyTeachers } from '@/features/teachers/hooks/useMyTeachers';
 import {
   AppScreen,
@@ -10,9 +11,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  MetricCard,
   ModuleHeader,
-  SectionCard,
 } from '@/shared/components';
 import { colors, spacing } from '@/shared/theme';
 
@@ -21,21 +20,18 @@ export default function TeachersScreen(): React.JSX.Element {
 
   const { teachers, isLoading, error, refetch } = useMyTeachers(user?.id);
 
-  const uniqueTeachers = new Set(
-    teachers.map((teacher) => teacher.teacher_id),
-  ).size;
+  const uniqueTeacherCount = useMemo(
+    () => new Set(teachers.map((item) => item.teacher_id)).size,
+    [teachers],
+  );
 
-  const uniqueCourses = new Set(
-    teachers.map((teacher) => teacher.course_id),
-  ).size;
-
-  const academicPeriod = teachers[0]?.academic_period ?? '202601';
+  const academicPeriod = teachers[0]?.academic_period ?? 'No registrado';
 
   return (
     <AppScreen>
       <ModuleHeader
         title="Docentes"
-        subtitle="Consulta tus docentes, correos institucionales y cursos asignados."
+        subtitle="Consulta docentes, cursos asignados y correos institucionales."
       />
 
       {isLoading ? <LoadingState message="Cargando tus docentes..." /> : null}
@@ -53,39 +49,12 @@ export default function TeachersScreen(): React.JSX.Element {
 
       {!isLoading && !error && teachers.length > 0 ? (
         <>
-          <SectionCard title="Resumen docente">
-            <View style={styles.metricsGrid}>
-              <MetricCard
-                label="Docentes"
-                value={String(uniqueTeachers)}
-                helper="Asignados a tus cursos"
-              />
-
-              <MetricCard
-                label="Cursos"
-                value={String(uniqueCourses)}
-                helper="Con docente registrado"
-              />
-
-              <MetricCard
-                label="Periodo"
-                value={academicPeriod}
-                helper="Periodo académico"
-              />
-
-              <MetricCard
-                label="Ciclo"
-                value={String(user?.cycle ?? '-')}
-                helper={user?.career ?? 'Carrera no registrada'}
-              />
-            </View>
-          </SectionCard>
-
-          <View style={styles.sectionHeader}>
+          <View style={styles.contextBlock}>
             <AppText variant="sectionTitle">Mis docentes</AppText>
 
             <AppText color={colors.text.secondary} variant="caption">
-              Revisa quién dicta cada curso y comunícate mediante el correo institucional.
+              {uniqueTeacherCount} docentes asignados · Periodo{' '}
+              {academicPeriod}
             </AppText>
           </View>
 
@@ -95,6 +64,10 @@ export default function TeachersScreen(): React.JSX.Element {
               item={teacher}
             />
           ))}
+
+          {user?.id ? (
+            <TeacherMiniChat userId={user.id} teachers={teachers} />
+          ) : null}
         </>
       ) : null}
     </AppScreen>
@@ -102,14 +75,7 @@ export default function TeachersScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-
-  sectionHeader: {
+  contextBlock: {
     gap: spacing.xs,
-    marginTop: spacing.md,
   },
 });

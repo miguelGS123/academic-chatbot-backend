@@ -7,7 +7,10 @@ export const endpoints = {
 
   questions: {
     ask: '/api/v1/questions/ask',
-    sessionsByUser: (userId: number) => `/api/v1/questions/sessions/${userId}`,
+
+    sessionsByUser: (userId: number) =>
+      `/api/v1/questions/sessions/${userId}`,
+
     messagesBySession: (sessionId: number) =>
       `/api/v1/questions/sessions/${sessionId}/messages`,
   },
