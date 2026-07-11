@@ -9,7 +9,11 @@ class QuestionRepository:
         self.db = db
 
     def get_user_by_id(self, user_id: int):
-        return self.db.query(User).filter(User.id == user_id).first()
+        return (
+            self.db.query(User)
+            .filter(User.id == user_id)
+            .first()
+        )
 
     def get_curriculum_by_cycle(self, career: str, cycle: int):
         return (
@@ -29,8 +33,15 @@ class QuestionRepository:
             .all()
         )
 
-    def create_chat_session(self, user_id: int, title: str | None = None):
-        session = ChatSession(user_id=user_id, title=title)
+    def create_chat_session(
+        self,
+        user_id: int,
+        title: str | None = None,
+    ):
+        session = ChatSession(
+            user_id=user_id,
+            title=title,
+        )
 
         self.db.add(session)
         self.db.commit()
@@ -45,25 +56,44 @@ class QuestionRepository:
             .first()
         )
 
-    def create_chat_message(
+    def create_chat_messages(
         self,
         session_id: int,
         user_id: int,
-        role: str,
-        message: str,
-    ):
-        chat_message = ChatMessage(
+        user_message: str,
+        assistant_message: str,
+    ) -> tuple[ChatMessage, ChatMessage]:
+        user_chat_message = ChatMessage(
             session_id=session_id,
             user_id=user_id,
-            role=role,
-            message=message,
+            role="user",
+            message=user_message,
         )
 
-        self.db.add(chat_message)
-        self.db.commit()
-        self.db.refresh(chat_message)
+        assistant_chat_message = ChatMessage(
+            session_id=session_id,
+            user_id=user_id,
+            role="assistant",
+            message=assistant_message,
+        )
 
-        return chat_message
+        try:
+            self.db.add_all(
+                [
+                    user_chat_message,
+                    assistant_chat_message,
+                ]
+            )
+
+            self.db.commit()
+            self.db.refresh(user_chat_message)
+            self.db.refresh(assistant_chat_message)
+
+            return user_chat_message, assistant_chat_message
+
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_sessions_by_user(self, user_id: int):
         return (
@@ -86,10 +116,14 @@ class QuestionRepository:
         session_id: int,
         limit: int = 8,
     ):
-        return (
+        messages = (
             self.db.query(ChatMessage)
             .filter(ChatMessage.session_id == session_id)
             .order_by(ChatMessage.created_at.desc())
             .limit(limit)
             .all()
         )
+
+        # La consulta obtiene los más recientes en DESC, pero Gemini debe
+        # recibirlos en orden cronológico.
+        return list(reversed(messages))

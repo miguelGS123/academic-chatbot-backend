@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,10 @@ from app.schemas.question_schema import (
 )
 from app.services.question_service import QuestionService
 
-router = APIRouter(prefix="/questions", tags=["Questions"])
+router = APIRouter(
+    prefix="/questions",
+    tags=["Questions"],
+)
 
 
 @router.get("/health")
@@ -32,21 +35,27 @@ def db_check(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/ask", response_model=AskQuestionResponse)
-def ask_question(
+@router.post(
+    "/ask",
+    response_model=AskQuestionResponse,
+)
+async def ask_question(
     payload: AskQuestionRequest,
     db: Session = Depends(get_db),
 ):
     service = QuestionService(db)
 
-    return service.ask_question(
+    return await service.ask_question(
         user_id=payload.user_id,
         question=payload.question,
         session_id=payload.session_id,
     )
 
 
-@router.get("/sessions/{user_id}", response_model=list[ChatSessionResponse])
+@router.get(
+    "/sessions/{user_id}",
+    response_model=list[ChatSessionResponse],
+)
 def get_user_sessions(
     user_id: int,
     db: Session = Depends(get_db),
@@ -56,11 +65,21 @@ def get_user_sessions(
     return service.get_user_sessions(user_id=user_id)
 
 
-@router.get("/sessions/{session_id}/messages", response_model=list[ChatMessageResponse])
+@router.get(
+    "/sessions/{session_id}/messages",
+    response_model=list[ChatMessageResponse],
+)
 def get_session_messages(
     session_id: int,
+    user_id: int | None = Query(
+        default=None,
+        description="Usuario propietario de la sesión.",
+    ),
     db: Session = Depends(get_db),
 ):
     service = QuestionService(db)
 
-    return service.get_session_messages(session_id=session_id)
+    return service.get_session_messages(
+        session_id=session_id,
+        user_id=user_id,
+    )

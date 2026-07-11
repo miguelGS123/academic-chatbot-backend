@@ -1,14 +1,17 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AskQuestionRequest(BaseModel):
-    user_id: int = Field(..., description="ID del estudiante")
-    question: str = Field(..., min_length=3, description="Pregunta del estudiante")
+    user_id: int = Field(gt=0)
+    question: str = Field(
+        min_length=1,
+        max_length=1000,
+    )
     session_id: int | None = Field(
-        None,
-        description="ID de sesión existente. Si se omite, se crea una nueva.",
+        default=None,
+        gt=0,
     )
 
 
@@ -23,10 +26,9 @@ class ChatSessionResponse(BaseModel):
     id: int
     user_id: int
     title: str | None = None
-    created_at: datetime
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatMessageResponse(BaseModel):
@@ -35,7 +37,6 @@ class ChatMessageResponse(BaseModel):
     user_id: int
     role: str
     message: str
-    created_at: datetime
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

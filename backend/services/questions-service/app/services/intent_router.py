@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 
 import google.generativeai as genai
 
@@ -17,174 +18,210 @@ class IntentRouter:
         "all",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.enabled = bool(settings.GEMINI_API_KEY)
+        self.model = None
 
         if self.enabled:
             genai.configure(api_key=settings.GEMINI_API_KEY)
             self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        else:
-            self.model = None
 
     def classify(self, question: str) -> list[str]:
-        fallback = self._fallback_classify(question)
+        normalized_question = self._normalize_text(question)
 
+        local_intents = self._classify_locally(normalized_question)
+
+        # Una intención local clara evita una llamada adicional a Gemini.
+        if local_intents:
+            return self._sort_intents(local_intents)
+
+        # Solo usamos Gemini cuando la consulta realmente es ambigua.
         if not self.enabled or self.model is None:
-            return fallback
+            return ["general"]
+
+        return self._classify_with_gemini(question)
+
+    def _classify_locally(self, question: str) -> set[str]:
+        intents: set[str] = set()
+
+        all_phrases = {
+            "como voy",
+            "orientame",
+            "que me recomiendas",
+            "que deberia hacer",
+            "como estoy academicamente",
+            "analiza mi situacion",
+            "dame una recomendacion",
+        }
+
+        if any(phrase in question for phrase in all_phrases):
+            return {"all"}
+
+        course_keywords = {
+            "curso",
+            "cursos",
+            "curzo",
+            "clase",
+            "clases",
+            "horario",
+            "horarios",
+            "silabo",
+            "creditos",
+            "matriculado",
+            "matriculados",
+            "aula",
+            "seccion",
+            "toca hoy",
+        }
+
+        payment_keywords = {
+            "pago",
+            "pagos",
+            "deuda",
+            "debo",
+            "mensualidad",
+            "mensualidades",
+            "cuota",
+            "cuotas",
+            "matricula",
+            "boleta",
+            "comprobante",
+            "pagado",
+            "vencido",
+            "vencimiento",
+            "operacion",
+        }
+
+        teacher_keywords = {
+            "docente",
+            "docentes",
+            "profesor",
+            "profesores",
+            "profe",
+            "correo",
+            "dicta",
+            "asesoria",
+            "seccion",
+        }
+
+        study_keywords = {
+            "ciclo",
+            "malla",
+            "prerrequisito",
+            "prerrequisitos",
+            "ruta academica",
+            "avance",
+            "academico",
+            "proximo ciclo",
+            "siguiente ciclo",
+            "plan de estudios",
+        }
+
+        certification_keywords = {
+            "certificacion",
+            "certificaciones",
+            "aws",
+            "azure",
+            "cisco",
+            "microsoft learn",
+            "cloud",
+            "nube",
+            "devops",
+            "especializacion",
+            "especializarme",
+            "ruta profesional",
+        }
+
+        if self._contains_any(question, course_keywords):
+            intents.add("courses")
+
+        if self._contains_any(question, payment_keywords):
+            intents.add("payments")
+
+        if self._contains_any(question, teacher_keywords):
+            intents.add("teachers")
+
+        if self._contains_any(question, study_keywords):
+            intents.add("study")
+
+        if self._contains_any(question, certification_keywords):
+            intents.update({"certifications", "study", "courses"})
+
+        return intents
+
+    def _classify_with_gemini(self, question: str) -> list[str]:
+        if self.model is None:
+            return ["general"]
 
         prompt = f"""
 Clasifica la intención de una pregunta de un estudiante universitario.
 
-La pregunta puede tener errores ortográficos, abreviaturas o lenguaje informal.
+La pregunta puede ser una continuación de una conversación anterior, contener
+errores ortográficos, abreviaturas o lenguaje informal.
 
 Intenciones válidas:
-- courses: cursos matriculados, horarios, clases, sílabos, créditos.
-- payments: pagos, deudas, mensualidades, cuotas, matrícula, comprobantes.
-- teachers: docentes, profesores, correos, asesorías, quién dicta un curso.
-- study: malla curricular, avance académico, próximo ciclo, prerrequisitos.
-- certifications: certificaciones, AWS, Cisco, Azure, Microsoft, cursos externos.
-- all: cuando la pregunta requiere combinar varios módulos.
-- general: saludo o consulta sin intención clara.
+- courses: cursos, horarios, sílabos, créditos, clases, aulas y secciones.
+- payments: pagos, deudas, cuotas, matrícula, vencimientos y comprobantes.
+- teachers: docentes, profesores, correos, asesorías y cursos dictados.
+- study: malla, ciclo, avance, prerrequisitos y próximo ciclo.
+- certifications: certificaciones, DevOps, cloud, AWS, Azure, Cisco y Microsoft.
+- all: preguntas que necesitan combinar varios módulos.
+- general: saludos o consultas que no requieren datos académicos específicos.
 
-Reglas:
-- Puede haber varias intenciones.
-- Si pregunta "cómo voy", "qué me recomiendas", "qué debería hacer", usa "all".
-- Si pregunta por DevOps, cloud, ruta profesional o especialización, usa ["study", "courses", "certifications"].
-- Si pregunta por pago y comprobante, usa ["payments"].
-- Si pregunta por curso y docente, usa ["courses", "teachers"].
+Puedes devolver varias intenciones.
 
-Responde SOLO JSON válido:
+Devuelve únicamente JSON válido:
+
 {{
-  "intents": ["study", "courses"]
+  "intents": ["courses"]
 }}
 
 Pregunta:
 {question}
-"""
+""".strip()
 
         try:
             response = self.model.generate_content(prompt)
             raw_text = response.text.strip()
-            clean_text = self._extract_json(raw_text)
-            parsed = json.loads(clean_text)
+            parsed = json.loads(self._extract_json(raw_text))
 
-            intents = parsed.get("intents", [])
+            intents = {
+                intent
+                for intent in parsed.get("intents", [])
+                if intent in self.VALID_INTENTS
+            }
 
-            normalized = [
-                intent for intent in intents if intent in self.VALID_INTENTS
-            ]
-
-            return normalized or fallback
+            return self._sort_intents(intents) if intents else ["general"]
 
         except Exception:
-            return fallback
+            return ["general"]
+
+    def _contains_any(self, text: str, keywords: set[str]) -> bool:
+        return any(keyword in text for keyword in keywords)
+
+    def _normalize_text(self, value: str) -> str:
+        normalized = unicodedata.normalize("NFD", value.lower().strip())
+
+        return "".join(
+            character
+            for character in normalized
+            if unicodedata.category(character) != "Mn"
+        )
 
     def _extract_json(self, text: str) -> str:
         match = re.search(r"\{.*\}", text, re.DOTALL)
 
-        if match:
-            return match.group(0)
+        return match.group(0) if match else text
 
-        return text
+    def _sort_intents(self, intents: set[str]) -> list[str]:
+        priority = [
+            "all",
+            "payments",
+            "courses",
+            "teachers",
+            "study",
+            "certifications",
+            "general",
+        ]
 
-    def _fallback_classify(self, question: str) -> list[str]:
-        question_lower = question.lower()
-        intents: set[str] = set()
-
-        if any(
-            word in question_lower
-            for word in [
-                "curso",
-                "curzo",
-                "clase",
-                "horario",
-                "hoy",
-                "toca",
-                "silabo",
-                "sílabo",
-                "creditos",
-                "créditos",
-            ]
-        ):
-            intents.add("courses")
-
-        if any(
-            word in question_lower
-            for word in [
-                "pago",
-                "deuda",
-                "debo",
-                "mensualidad",
-                "cuota",
-                "matricula",
-                "matrícula",
-                "boleta",
-                "comprobante",
-                "pagado",
-            ]
-        ):
-            intents.add("payments")
-
-        if any(
-            word in question_lower
-            for word in [
-                "docente",
-                "profesor",
-                "profe",
-                "correo",
-                "dicta",
-                "asesoria",
-                "asesoría",
-            ]
-        ):
-            intents.add("teachers")
-
-        if any(
-            word in question_lower
-            for word in [
-                "ciclo",
-                "malla",
-                "prerrequisito",
-                "ruta",
-                "avance",
-                "estudio",
-                "académico",
-                "academico",
-            ]
-        ):
-            intents.add("study")
-
-        if any(
-            word in question_lower
-            for word in [
-                "certificacion",
-                "certificación",
-                "aws",
-                "cisco",
-                "microsoft",
-                "azure",
-                "devops",
-                "cloud",
-                "nube",
-            ]
-        ):
-            intents.add("certifications")
-            intents.add("study")
-            intents.add("courses")
-
-        if any(
-            phrase in question_lower
-            for phrase in [
-                "cómo voy",
-                "como voy",
-                "qué me recomiendas",
-                "que me recomiendas",
-                "qué debería",
-                "que deberia",
-                "orientame",
-                "oriéntame",
-            ]
-        ):
-            intents.add("all")
-
-        return list(intents) or ["general"]
+        return [intent for intent in priority if intent in intents]

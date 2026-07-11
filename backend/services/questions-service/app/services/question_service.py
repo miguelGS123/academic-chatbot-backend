@@ -1,4 +1,6 @@
+import asyncio
 import json
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,12 +18,14 @@ class QuestionService:
         self.intent_router = IntentRouter()
         self.gateway_client = GatewayClient()
 
-    def ask_question(
+    async def ask_question(
         self,
         user_id: int,
         question: str,
         session_id: int | None = None,
     ):
+        clean_question = question.strip()
+
         user = self.repository.get_user_by_id(user_id)
 
         if not user:
@@ -30,65 +34,60 @@ class QuestionService:
                 detail="Usuario no encontrado.",
             )
 
-        if session_id:
-            chat_session = self.repository.get_chat_session_by_id(session_id)
+        chat_session = self._resolve_chat_session(
+            user_id=user_id,
+            question=clean_question,
+            session_id=session_id,
+        )
 
-            if not chat_session:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Sesión de chat no encontrada.",
-                )
+        intents = await asyncio.to_thread(
+            self.intent_router.classify,
+            clean_question,
+        )
 
-            if chat_session.user_id != user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="La sesión no pertenece al usuario.",
-                )
-        else:
-            chat_session = self.repository.create_chat_session(
-                user_id=user_id,
-                title=question[:80],
-            )
-
-        intents = self.intent_router.classify(question)
-
-        context = self._build_context(
+        context = await self._build_context(
             user=user,
-            question=question,
+            question=clean_question,
             intents=intents,
             session_id=chat_session.id,
         )
 
-        answer = self.gemini_service.generate_answer(
-            question=question,
-            context=context,
+        answer = await asyncio.to_thread(
+            self.gemini_service.generate_answer,
+            clean_question,
+            context,
         )
 
-        self.repository.create_chat_message(
+        self.repository.create_chat_messages(
             session_id=chat_session.id,
             user_id=user_id,
-            role="user",
-            message=question,
-        )
-
-        self.repository.create_chat_message(
-            session_id=chat_session.id,
-            user_id=user_id,
-            role="assistant",
-            message=answer,
+            user_message=clean_question,
+            assistant_message=answer,
         )
 
         return {
             "session_id": chat_session.id,
             "user_id": user_id,
-            "question": question,
+            "question": clean_question,
             "answer": answer,
         }
 
     def get_user_sessions(self, user_id: int):
+        user = self.repository.get_user_by_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado.",
+            )
+
         return self.repository.get_sessions_by_user(user_id=user_id)
 
-    def get_session_messages(self, session_id: int):
+    def get_session_messages(
+        self,
+        session_id: int,
+        user_id: int | None = None,
+    ):
         session = self.repository.get_chat_session_by_id(session_id)
 
         if not session:
@@ -97,36 +96,58 @@ class QuestionService:
                 detail="Sesión de chat no encontrada.",
             )
 
-        return self.repository.get_messages_by_session(session_id=session_id)
+        if user_id is not None and session.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="La sesión no pertenece al usuario.",
+            )
 
-    def _build_context(
+        return self.repository.get_messages_by_session(
+            session_id=session_id,
+        )
+
+    def _resolve_chat_session(
+        self,
+        user_id: int,
+        question: str,
+        session_id: int | None,
+    ):
+        if not session_id:
+            return self.repository.create_chat_session(
+                user_id=user_id,
+                title=question[:80],
+            )
+
+        session = self.repository.get_chat_session_by_id(session_id)
+
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sesión de chat no encontrada.",
+            )
+
+        if session.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="La sesión no pertenece al usuario.",
+            )
+
+        return session
+
+    async def _build_context(
         self,
         user,
         question: str,
         intents: list[str],
         session_id: int,
     ) -> str:
-        context_parts: list[str] = []
-
-        context_parts.append(
-            f"""
-========================
-DATOS DEL ESTUDIANTE
-========================
-ID: {user.id}
-Nombre: {user.full_name}
-Email: {user.email}
-Carrera: {user.career}
-Ciclo actual: {user.cycle}
-Rol: {user.role}
-
-PREGUNTA ORIGINAL:
-{question}
-
-INTENCIONES DETECTADAS:
-{", ".join(intents)}
-""".strip()
-        )
+        context_parts: list[str] = [
+            self._build_student_block(
+                user=user,
+                question=question,
+                intents=intents,
+            )
+        ]
 
         recent_messages = self.repository.get_recent_messages_by_session(
             session_id=session_id,
@@ -136,76 +157,59 @@ INTENCIONES DETECTADAS:
         if recent_messages:
             context_parts.append(
                 self._format_context_block(
-                    "MEMORIA RECIENTE DE LA CONVERSACIÓN",
-                    [
+                    title="MEMORIA RECIENTE DE LA CONVERSACIÓN",
+                    data=[
                         {
                             "role": message.role,
                             "message": message.message,
-                            "created_at": str(message.created_at),
                         }
                         for message in recent_messages
                     ],
                 )
             )
 
-        external_context = self.gateway_client.get_full_student_context(
+        external_context = await self.gateway_client.get_full_student_context(
             user_id=user.id,
             intents=intents,
         )
 
-        context_parts.append(
-            self._format_context_block(
-                "CONTEXTO REAL DE MICROSERVICIOS",
-                external_context,
-            )
-        )
-
-        current_cycle_courses = self.repository.get_curriculum_by_cycle(
-            career=user.career,
-            cycle=user.cycle,
-        )
-
-        if current_cycle_courses:
+        if external_context:
             context_parts.append(
                 self._format_context_block(
-                    "CURSOS DEL CICLO ACTUAL EN LA MALLA",
-                    [
-                        {
-                            "course_code": course.course_code,
-                            "course_name": course.course_name,
-                            "cycle": course.cycle,
-                            "credits": course.credits,
-                            "area": getattr(course, "area", None),
-                        }
-                        for course in current_cycle_courses
-                    ],
+                    title="DATOS DE LOS MÓDULOS ACADÉMICOS",
+                    data=external_context,
                 )
             )
 
-        if self._is_professional_path_question(question, intents):
-            context_parts.append(
-                """
-========================
-GUÍA PARA RUTA PROFESIONAL
-========================
-Si el estudiante pregunta por DevOps, cloud, ciberseguridad, backend, datos o ruta profesional:
-
-- No digas que no puedes recomendar si existen plataformas recomendadas en el contexto.
-- Aclara que no hay una ruta oficial de especialización si no aparece en la malla.
-- Luego brinda una ruta orientativa usando SOLO cursos, áreas y plataformas disponibles.
-- Para DevOps, prioriza fundamentos de cloud, backend, redes, seguridad, automatización, contenedores y buenas prácticas.
-- Si aparecen AWS Educate, Microsoft Learn o Cisco Networking Academy, úsalas como opciones recomendadas.
-- Da pasos concretos y breves.
-""".strip()
+        if self._needs_curriculum_context(intents):
+            curriculum = self.repository.get_curriculum_by_cycle(
+                career=user.career,
+                cycle=user.cycle,
             )
 
-        knowledge_items = self.repository.get_active_knowledge_base(limit=8)
+            if curriculum:
+                context_parts.append(
+                    self._format_context_block(
+                        title="MALLA DEL CICLO ACTUAL",
+                        data=[
+                            {
+                                "course_code": course.course_code,
+                                "course_name": course.course_name,
+                                "cycle": course.cycle,
+                                "credits": course.credits,
+                            }
+                            for course in curriculum
+                        ],
+                    )
+                )
+
+        knowledge_items = self.repository.get_active_knowledge_base(limit=5)
 
         if knowledge_items:
             context_parts.append(
                 self._format_context_block(
-                    "BASE DE CONOCIMIENTO INSTITUCIONAL",
-                    [
+                    title="BASE DE CONOCIMIENTO INSTITUCIONAL",
+                    data=[
                         {
                             "title": item.title,
                             "category": item.category,
@@ -219,50 +223,58 @@ Si el estudiante pregunta por DevOps, cloud, ciberseguridad, backend, datos o ru
         context_parts.append(
             """
 ========================
-INSTRUCCIONES DE RESPUESTA
+REGLAS FINALES
 ========================
-Usa solo los datos anteriores.
-Si un bloque tiene error, indícalo de forma breve y continúa con los otros bloques válidos.
-No copies JSON completo en la respuesta.
-Responde con claridad, brevedad y pasos concretos.
-Si hay información de plataformas/certificaciones, úsala para recomendar.
+- Usa únicamente la información disponible.
+- No inventes datos.
+- Si un servicio falló, utiliza los demás datos disponibles.
+- Responde directamente a la pregunta actual.
+- Usa la memoria solo para entender referencias como "él", "ese curso",
+  "esa deuda" o "después".
+- No muestres JSON ni detalles internos del sistema.
 """.strip()
         )
 
         return "\n\n".join(context_parts)
 
-    def _is_professional_path_question(
+    def _build_student_block(
         self,
+        user,
         question: str,
         intents: list[str],
-    ) -> bool:
-        question_lower = question.lower()
+    ) -> str:
+        return f"""
+========================
+ESTUDIANTE
+========================
+ID: {user.id}
+Nombre: {user.full_name}
+Carrera: {user.career}
+Ciclo actual: {user.cycle}
+Rol: {user.role}
 
-        professional_keywords = [
-            "devops",
-            "cloud",
-            "nube",
-            "aws",
-            "azure",
-            "cisco",
-            "certificación",
-            "certificacion",
-            "especializar",
-            "especialización",
-            "especializacion",
-            "ruta",
-            "recomiendas",
-            "estudiar primero",
-            "perfil",
-        ]
+Pregunta actual:
+{question}
 
-        return (
-            "certifications" in intents
-            or "study" in intents
-            or any(keyword in question_lower for keyword in professional_keywords)
-        )
+Intenciones detectadas:
+{", ".join(intents)}
+""".strip()
 
-    def _format_context_block(self, title: str, data) -> str:
+    def _needs_curriculum_context(self, intents: list[str]) -> bool:
+        relevant_intents = {
+            "all",
+            "study",
+            "courses",
+            "certifications",
+        }
+
+        return bool(relevant_intents.intersection(intents))
+
+    def _format_context_block(
+        self,
+        title: str,
+        data: Any,
+    ) -> str:
         return f"""
 ========================
 {title}
@@ -270,8 +282,13 @@ Si hay información de plataformas/certificaciones, úsala para recomendar.
 {self._to_pretty_json(data)}
 """.strip()
 
-    def _to_pretty_json(self, data) -> str:
+    def _to_pretty_json(self, data: Any) -> str:
         try:
-            return json.dumps(data, ensure_ascii=False, default=str, indent=2)
+            return json.dumps(
+                data,
+                ensure_ascii=False,
+                default=str,
+                indent=2,
+            )
         except TypeError:
             return str(data)
