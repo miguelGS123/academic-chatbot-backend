@@ -1,3 +1,7 @@
+import {
+  type Href,
+  useRouter,
+} from 'expo-router';
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -15,10 +19,15 @@ import {
 import { colors, spacing } from '@/shared/theme';
 
 export default function CoursesScreen(): React.JSX.Element {
+  const router = useRouter();
   const { user } = useAuth();
 
-  const { courses, isLoading, error, refetch } =
-    useStudentCourses(user?.id);
+  const {
+    courses,
+    isLoading,
+    error,
+    refetch,
+  } = useStudentCourses(user?.id);
 
   const totalCredits = useMemo(
     () =>
@@ -35,13 +44,27 @@ export default function CoursesScreen(): React.JSX.Element {
       courses.filter((item) => {
         const status = item.status?.toLowerCase();
 
-        return !status || status === 'active' || status === 'enrolled';
+        return (
+          !status ||
+          status === 'active' ||
+          status === 'enrolled'
+        );
       }).length,
     [courses],
   );
 
   const academicPeriod =
     courses[0]?.academic_period ?? 'No registrado';
+
+  function openCourseDetail(courseCode: string): void {
+    const encodedCourseCode =
+      encodeURIComponent(courseCode);
+
+    const destination =
+      `./course-detail?courseCode=${encodedCourseCode}` as Href;
+
+    router.push(destination);
+  }
 
   return (
     <AppScreen>
@@ -55,29 +78,49 @@ export default function CoursesScreen(): React.JSX.Element {
       ) : null}
 
       {!isLoading && error ? (
-        <ErrorState message={error} onRetry={refetch} />
+        <ErrorState
+          message={error}
+          onRetry={refetch}
+        />
       ) : null}
 
-      {!isLoading && !error && courses.length === 0 ? (
+      {!isLoading &&
+      !error &&
+      courses.length === 0 ? (
         <EmptyState
           title="Sin cursos"
           message="No tienes cursos matriculados para este periodo."
         />
       ) : null}
 
-      {!isLoading && !error && courses.length > 0 ? (
+      {!isLoading &&
+      !error &&
+      courses.length > 0 ? (
         <>
           <View style={styles.contextBlock}>
-            <AppText variant="sectionTitle">Mis cursos</AppText>
+            <AppText variant="sectionTitle">
+              Mis cursos
+            </AppText>
 
-            <AppText color={colors.text.secondary} variant="caption">
-              Periodo {academicPeriod} · {activeCourses} cursos ·{' '}
-              {totalCredits} créditos
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
+              Periodo {academicPeriod} · {activeCourses}{' '}
+              cursos · {totalCredits} créditos
             </AppText>
           </View>
 
-          {courses.map((course) => (
-            <CourseCard key={course.id} item={course} />
+          {courses.map((courseItem) => (
+            <CourseCard
+              key={courseItem.id}
+              item={courseItem}
+              onPress={() =>
+                openCourseDetail(
+                  courseItem.course.course_code,
+                )
+              }
+            />
           ))}
         </>
       ) : null}

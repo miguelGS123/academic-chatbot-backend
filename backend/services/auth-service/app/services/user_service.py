@@ -5,7 +5,6 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-
 from app.repositories.user_repository import (
     create_user,
     get_user_by_email,
@@ -20,9 +19,11 @@ def register_user(
     career: str,
     cycle: int,
 ):
+    normalized_email = email.strip().lower()
+
     existing_user = get_user_by_email(
         db,
-        email,
+        normalized_email,
     )
 
     if existing_user:
@@ -30,26 +31,26 @@ def register_user(
 
     hashed_password = hash_password(password)
 
-    user = create_user(
+    return create_user(
         db,
-        full_name,
-        email,
+        full_name.strip(),
+        normalized_email,
         hashed_password,
         career,
         cycle,
     )
-
-    return user
 
 
 def login_user(
     db: Session,
     email: str,
     password: str,
-):
+) -> str | None:
+    normalized_email = email.strip().lower()
+
     user = get_user_by_email(
         db,
-        email,
+        normalized_email,
     )
 
     if not user:
@@ -64,8 +65,8 @@ def login_user(
     ):
         return None
 
-    access_token = create_access_token({
-        "sub": user.email,
-    })
-
-    return access_token
+    return create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
+    )

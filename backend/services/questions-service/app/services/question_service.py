@@ -23,8 +23,15 @@ class QuestionService:
         user_id: int,
         question: str,
         session_id: int | None = None,
+        persist: bool = True,
     ):
         clean_question = question.strip()
+
+        if not clean_question:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="La pregunta no puede estar vacía.",
+            )
 
         user = self.repository.get_user_by_id(user_id)
 
@@ -34,11 +41,14 @@ class QuestionService:
                 detail="Usuario no encontrado.",
             )
 
-        chat_session = self._resolve_chat_session(
-            user_id=user_id,
-            question=clean_question,
-            session_id=session_id,
-        )
+        chat_session = None
+
+        if persist:
+            chat_session = self._resolve_chat_session(
+                user_id=user_id,
+                question=clean_question,
+                session_id=session_id,
+            )
 
         intents = await asyncio.to_thread(
             self.intent_router.classify,
@@ -49,7 +59,7 @@ class QuestionService:
             user=user,
             question=clean_question,
             intents=intents,
-            session_id=chat_session.id,
+            session_id=chat_session.id if chat_session else None,
         )
 
         answer = await asyncio.to_thread(
@@ -58,15 +68,16 @@ class QuestionService:
             context,
         )
 
-        self.repository.create_chat_messages(
-            session_id=chat_session.id,
-            user_id=user_id,
-            user_message=clean_question,
-            assistant_message=answer,
-        )
+        if persist and chat_session is not None:
+            self.repository.create_chat_messages(
+                session_id=chat_session.id,
+                user_id=user_id,
+                user_message=clean_question,
+                assistant_message=answer,
+            )
 
         return {
-            "session_id": chat_session.id,
+            "session_id": chat_session.id if chat_session else None,
             "user_id": user_id,
             "question": clean_question,
             "answer": answer,
@@ -81,22 +92,26 @@ class QuestionService:
                 detail="Usuario no encontrado.",
             )
 
-        return self.repository.get_sessions_by_user(user_id=user_id)
+        return self.repository.get_sessions_by_user(
+            user_id=user_id,
+        )
 
     def get_session_messages(
         self,
         session_id: int,
         user_id: int | None = None,
     ):
-        session = self.repository.get_chat_session_by_id(session_id)
+        chat_session = self.repository.get_chat_session_by_id(
+            session_id=session_id,
+        )
 
-        if not session:
+        if not chat_session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Sesión de chat no encontrada.",
             )
 
-        if user_id is not None and session.user_id != user_id:
+        if user_id is not None and chat_session.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="La sesión no pertenece al usuario.",
@@ -112,34 +127,36 @@ class QuestionService:
         question: str,
         session_id: int | None,
     ):
-        if not session_id:
+        if session_id is None:
             return self.repository.create_chat_session(
                 user_id=user_id,
                 title=question[:80],
             )
 
-        session = self.repository.get_chat_session_by_id(session_id)
+        chat_session = self.repository.get_chat_session_by_id(
+            session_id=session_id,
+        )
 
-        if not session:
+        if not chat_session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Sesión de chat no encontrada.",
             )
 
-        if session.user_id != user_id:
+        if chat_session.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="La sesión no pertenece al usuario.",
             )
 
-        return session
+        return chat_session
 
     async def _build_context(
         self,
         user,
         question: str,
         intents: list[str],
-        session_id: int,
+        session_id: int | None,
     ) -> str:
         context_parts: list[str] = [
             self._build_student_block(
@@ -149,10 +166,15 @@ class QuestionService:
             )
         ]
 
-        recent_messages = self.repository.get_recent_messages_by_session(
-            session_id=session_id,
-            limit=8,
-        )
+        recent_messages = []
+
+        if session_id is not None:
+            recent_messages = (
+                self.repository.get_recent_messages_by_session(
+                    session_id=session_id,
+                    limit=8,
+                )
+            )
 
         if recent_messages:
             context_parts.append(
@@ -168,9 +190,11 @@ class QuestionService:
                 )
             )
 
-        external_context = await self.gateway_client.get_full_student_context(
-            user_id=user.id,
-            intents=intents,
+        external_context = (
+            await self.gateway_client.get_full_student_context(
+                user_id=user.id,
+                intents=intents,
+            )
         )
 
         if external_context:
@@ -182,9 +206,11 @@ class QuestionService:
             )
 
         if self._needs_curriculum_context(intents):
-            curriculum = self.repository.get_curriculum_by_cycle(
-                career=user.career,
-                cycle=user.cycle,
+            curriculum = (
+                self.repository.get_curriculum_by_cycle(
+                    career=user.career,
+                    cycle=user.cycle,
+                )
             )
 
             if curriculum:
@@ -203,7 +229,11 @@ class QuestionService:
                     )
                 )
 
-        knowledge_items = self.repository.get_active_knowledge_base(limit=5)
+        knowledge_items = (
+            self.repository.get_active_knowledge_base(
+                limit=5,
+            )
+        )
 
         if knowledge_items:
             context_parts.append(
@@ -226,12 +256,16 @@ class QuestionService:
 REGLAS FINALES
 ========================
 - Usa únicamente la información disponible.
-- No inventes datos.
+- No inventes datos académicos, financieros ni institucionales.
 - Si un servicio falló, utiliza los demás datos disponibles.
 - Responde directamente a la pregunta actual.
-- Usa la memoria solo para entender referencias como "él", "ese curso",
-  "esa deuda" o "después".
-- No muestres JSON ni detalles internos del sistema.
+- No repitas toda la información del módulo.
+- Usa la memoria solamente cuando exista una sesión persistente.
+- Los mini chats temporales no tienen memoria persistente.
+- No muestres JSON, rutas internas, errores técnicos ni detalles del sistema.
+- Si el usuario pregunta por un aula o salón, cruza cursos, horarios y docentes.
+- Si pregunta por pagos, diferencia pagado, pendiente y vencido.
+- Si pregunta por un docente, muestra correo, curso, sección o aula solo cuando existan.
 """.strip()
         )
 
@@ -260,7 +294,10 @@ Intenciones detectadas:
 {", ".join(intents)}
 """.strip()
 
-    def _needs_curriculum_context(self, intents: list[str]) -> bool:
+    def _needs_curriculum_context(
+        self,
+        intents: list[str],
+    ) -> bool:
         relevant_intents = {
             "all",
             "study",
@@ -268,7 +305,9 @@ Intenciones detectadas:
             "certifications",
         }
 
-        return bool(relevant_intents.intersection(intents))
+        return bool(
+            relevant_intents.intersection(intents)
+        )
 
     def _format_context_block(
         self,
@@ -282,7 +321,10 @@ Intenciones detectadas:
 {self._to_pretty_json(data)}
 """.strip()
 
-    def _to_pretty_json(self, data: Any) -> str:
+    def _to_pretty_json(
+        self,
+        data: Any,
+    ) -> str:
         try:
             return json.dumps(
                 data,

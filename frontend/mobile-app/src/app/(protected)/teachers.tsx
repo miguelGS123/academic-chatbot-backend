@@ -2,9 +2,12 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+
 import { TeacherCard } from '@/features/teachers/components/TeacherCard';
 import { TeacherMiniChat } from '@/features/teachers/components/TeacherMiniChat';
+
 import { useMyTeachers } from '@/features/teachers/hooks/useMyTeachers';
+
 import {
   AppScreen,
   AppText,
@@ -13,19 +16,30 @@ import {
   LoadingState,
   ModuleHeader,
 } from '@/shared/components';
-import { colors, spacing } from '@/shared/theme';
+
+import {
+  colors,
+  spacing,
+} from '@/shared/theme';
 
 export default function TeachersScreen(): React.JSX.Element {
   const { user } = useAuth();
 
-  const { teachers, isLoading, error, refetch } = useMyTeachers(user?.id);
+  const {
+    teachers,
+    isLoading,
+    error,
+    refetch,
+  } = useMyTeachers(user?.id);
 
-  const uniqueTeacherCount = useMemo(
-    () => new Set(teachers.map((item) => item.teacher_id)).size,
-    [teachers],
-  );
+  const uniqueTeacherCount = useMemo(() => {
+    return new Set(
+      teachers.map((item) => item.teacher_id),
+    ).size;
+  }, [teachers]);
 
-  const academicPeriod = teachers[0]?.academic_period ?? 'No registrado';
+  const academicPeriod =
+    teachers[0]?.academic_period ?? 'No registrado';
 
   return (
     <AppScreen>
@@ -34,27 +48,44 @@ export default function TeachersScreen(): React.JSX.Element {
         subtitle="Consulta docentes, cursos asignados y correos institucionales."
       />
 
-      {isLoading ? <LoadingState message="Cargando tus docentes..." /> : null}
-
-      {!isLoading && error ? (
-        <ErrorState message={error} onRetry={refetch} />
+      {isLoading ? (
+        <LoadingState message="Cargando tus docentes..." />
       ) : null}
 
-      {!isLoading && !error && teachers.length === 0 ? (
+      {!isLoading && error ? (
+        <ErrorState
+          message={error}
+          onRetry={refetch}
+        />
+      ) : null}
+
+      {!isLoading &&
+      !error &&
+      teachers.length === 0 ? (
         <EmptyState
           title="Sin docentes"
           message="No hay docentes asociados a tus cursos para este periodo."
         />
       ) : null}
 
-      {!isLoading && !error && teachers.length > 0 ? (
+      {!isLoading &&
+      !error &&
+      teachers.length > 0 ? (
         <>
           <View style={styles.contextBlock}>
-            <AppText variant="sectionTitle">Mis docentes</AppText>
+            <AppText variant="sectionTitle">
+              Mis docentes
+            </AppText>
 
-            <AppText color={colors.text.secondary} variant="caption">
-              {uniqueTeacherCount} docentes asignados · Periodo{' '}
-              {academicPeriod}
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
+              {uniqueTeacherCount}{' '}
+              {uniqueTeacherCount === 1
+                ? 'docente asignado'
+                : 'docentes asignados'}{' '}
+              · Periodo {academicPeriod}
             </AppText>
           </View>
 
@@ -66,7 +97,7 @@ export default function TeachersScreen(): React.JSX.Element {
           ))}
 
           {user?.id ? (
-            <TeacherMiniChat userId={user.id} teachers={teachers} />
+            <TeacherMiniChat userId={user.id} />
           ) : null}
         </>
       ) : null}

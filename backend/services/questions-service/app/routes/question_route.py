@@ -11,6 +11,7 @@ from app.schemas.question_schema import (
 )
 from app.services.question_service import QuestionService
 
+
 router = APIRouter(
     prefix="/questions",
     tags=["Questions"],
@@ -26,8 +27,16 @@ def health():
 
 
 @router.get("/db-check")
-def db_check(db: Session = Depends(get_db)):
-    result = db.execute(text("SELECT 1 AS ok")).mappings().first()
+def db_check(
+    db: Session = Depends(get_db),
+):
+    result = (
+        db.execute(
+            text("SELECT 1 AS ok")
+        )
+        .mappings()
+        .first()
+    )
 
     return {
         "database": "connected",
@@ -49,6 +58,7 @@ async def ask_question(
         user_id=payload.user_id,
         question=payload.question,
         session_id=payload.session_id,
+        persist=payload.persist,
     )
 
 
@@ -62,7 +72,9 @@ def get_user_sessions(
 ):
     service = QuestionService(db)
 
-    return service.get_user_sessions(user_id=user_id)
+    return service.get_user_sessions(
+        user_id=user_id,
+    )
 
 
 @router.get(
@@ -73,7 +85,7 @@ def get_session_messages(
     session_id: int,
     user_id: int | None = Query(
         default=None,
-        description="Usuario propietario de la sesión.",
+        description="Identificador del propietario de la sesión.",
     ),
     db: Session = Depends(get_db),
 ):

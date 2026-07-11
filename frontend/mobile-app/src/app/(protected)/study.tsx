@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LearningPlatformCard } from '@/features/study/components/LearningPlatformCard';
 import { StudyMiniChat } from '@/features/study/components/StudyMiniChat';
 import { useStudyDashboard } from '@/features/study/hooks/useStudyDashboard';
+
 import {
   AppScreen,
   AppText,
@@ -14,6 +15,7 @@ import {
   ModuleHeader,
   SectionCard,
 } from '@/shared/components';
+
 import { colors, radius, spacing } from '@/shared/theme';
 
 export default function StudyScreen(): React.JSX.Element {
@@ -48,7 +50,10 @@ export default function StudyScreen(): React.JSX.Element {
           subtitle="Consulta tu avance, próximo ciclo y certificaciones."
         />
 
-        <ErrorState message={error} onRetry={refetch} />
+        <ErrorState
+          message={error}
+          onRetry={refetch}
+        />
       </AppScreen>
     );
   }
@@ -63,17 +68,23 @@ export default function StudyScreen(): React.JSX.Element {
       <SectionCard title="Estado académico">
         <View style={styles.statusBlock}>
           <View style={styles.statusRow}>
-            <AppText color={colors.text.secondary} variant="caption">
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
               Ciclo actual
             </AppText>
 
             <AppText variant="body">
-              {String(user?.cycle ?? 'No registrado')}
+              {user?.cycle ?? 'No registrado'}
             </AppText>
           </View>
 
           <View style={styles.statusRow}>
-            <AppText color={colors.text.secondary} variant="caption">
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
               Carrera
             </AppText>
 
@@ -83,7 +94,10 @@ export default function StudyScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.statusRow}>
-            <AppText color={colors.text.secondary} variant="caption">
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
               Estado
             </AppText>
 
@@ -98,8 +112,20 @@ export default function StudyScreen(): React.JSX.Element {
 
       <SectionCard title="Próximo ciclo">
         {nextCycle?.detail ? (
-          <AppText color={colors.text.secondary} variant="caption">
+          <AppText
+            color={colors.text.secondary}
+            variant="caption"
+          >
             {nextCycle.detail}
+          </AppText>
+        ) : null}
+
+        {nextCycle?.message && !nextCycle.detail ? (
+          <AppText
+            color={colors.text.secondary}
+            variant="caption"
+          >
+            {nextCycle.message}
           </AppText>
         ) : null}
 
@@ -125,7 +151,10 @@ export default function StudyScreen(): React.JSX.Element {
             ))}
           </View>
         ) : (
-          <AppText color={colors.text.muted} variant="caption">
+          <AppText
+            color={colors.text.muted}
+            variant="caption"
+          >
             No hay cursos de próximo ciclo disponibles.
           </AppText>
         )}
@@ -136,8 +165,11 @@ export default function StudyScreen(): React.JSX.Element {
           Certificaciones recomendadas
         </AppText>
 
-        <AppText color={colors.text.secondary} variant="caption">
-          Plataformas alineadas con tu carrera y ciclo académico.
+        <AppText
+          color={colors.text.secondary}
+          variant="caption"
+        >
+          Plataformas alineadas con tu carrera y etapa académica.
         </AppText>
       </View>
 
@@ -156,13 +188,7 @@ export default function StudyScreen(): React.JSX.Element {
       )}
 
       {user?.id ? (
-        <StudyMiniChat
-          userId={user.id}
-          currentCycle={user.cycle}
-          career={user.career}
-          nextCycle={nextCycle}
-          platforms={platforms}
-        />
+        <StudyMiniChat userId={user.id} />
       ) : null}
     </AppScreen>
   );

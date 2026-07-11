@@ -2,32 +2,26 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    status,
 )
-
 from fastapi.security import OAuth2PasswordRequestForm
-
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
-
 from app.db.session import get_db
-
 from app.models.user_model import User
-
 from app.schemas.token_schema import Token
-
 from app.schemas.user_schema import (
     CurrentUserResponse,
     UserCreate,
     UserResponse,
 )
-
 from app.services.user_service import (
     login_user,
     register_user,
 )
-
 from app.utils.university_resolver import resolve_university_by_email
+
 
 router = APIRouter(
     prefix="/users",
@@ -35,27 +29,43 @@ router = APIRouter(
 )
 
 
+def build_current_user_response(
+    user: User,
+) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        university=resolve_university_by_email(user.email),
+        role=user.role,
+        career=user.career,
+        cycle=user.cycle,
+        is_active=user.is_active,
+    )
+
+
 @router.post(
     "/register",
     response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 def register(
     user: UserCreate,
     db: Session = Depends(get_db),
 ):
     created_user = register_user(
-        db,
-        user.full_name,
-        user.email,
-        user.password,
-        user.career,
-        user.cycle,
+        db=db,
+        full_name=user.full_name,
+        email=user.email,
+        password=user.password,
+        career=user.career,
+        cycle=user.cycle,
     )
 
     if not created_user:
         raise HTTPException(
-            status_code=400,
-            detail="Email already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El correo ya se encuentra registrado.",
         )
 
     return created_user
@@ -70,15 +80,18 @@ def login(
     db: Session = Depends(get_db),
 ):
     access_token = login_user(
-        db,
-        form_data.username,
-        form_data.password,
+        db=db,
+        email=form_data.username,
+        password=form_data.password,
     )
 
     if not access_token:
         raise HTTPException(
-            status_code=401,
-            detail="Invalid credentials",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales inválidas.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
     return {
@@ -94,13 +107,15 @@ def login(
 def get_me(
     current_user: User = Depends(get_current_user),
 ):
-    return CurrentUserResponse(
-        id=current_user.id,
-        full_name=current_user.full_name,
-        email=current_user.email,
-        university=resolve_university_by_email(current_user.email),
-        role=current_user.role,
-        career=current_user.career,
-        cycle=current_user.cycle,
-        is_active=current_user.is_active,
-    )
+    return build_current_user_response(current_user)
+
+
+@router.get(
+    "/validate",
+    response_model=CurrentUserResponse,
+    include_in_schema=False,
+)
+def validate_access_token(
+    current_user: User = Depends(get_current_user),
+):
+    return build_current_user_response(current_user)

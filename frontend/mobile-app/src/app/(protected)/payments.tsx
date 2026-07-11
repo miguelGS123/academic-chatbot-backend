@@ -1,15 +1,27 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, {
+  useMemo,
+  useState,
+} from 'react';
+
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+
 import { PaymentCheckoutModal } from '@/features/payments/components/PaymentCheckoutModal';
 import { PaymentHistoryModal } from '@/features/payments/components/PaymentHistoryModal';
 import { PaymentMiniChat } from '@/features/payments/components/PaymentMiniChat';
+
 import { usePaymentsSummary } from '@/features/payments/hooks/usePaymentsSummary';
+
 import type {
   PayPaymentResponse,
   PaymentItem,
 } from '@/features/payments/types/payment.types';
+
 import {
   AppScreen,
   AppText,
@@ -21,14 +33,27 @@ import {
   ModuleHeader,
   SectionCard,
 } from '@/shared/components';
-import { colors, radius, spacing } from '@/shared/theme';
 
-function formatMoney(value?: number | string | null): string {
+import {
+  colors,
+  radius,
+  spacing,
+} from '@/shared/theme';
+
+function formatMoney(
+  value?: number | string | null,
+): string {
   return `S/ ${Number(value ?? 0).toFixed(2)}`;
 }
 
-function formatDate(value?: string | null): string {
-  return value?.slice(0, 10) ?? 'No registrada';
+function formatDate(
+  value?: string | null,
+): string {
+  if (!value) {
+    return 'No registrada';
+  }
+
+  return value.slice(0, 10);
 }
 
 export default function PaymentsScreen(): React.JSX.Element {
@@ -37,13 +62,18 @@ export default function PaymentsScreen(): React.JSX.Element {
   const [selectedPayment, setSelectedPayment] =
     useState<PaymentItem | null>(null);
 
-  const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [isHistoryVisible, setIsHistoryVisible] =
+    useState(false);
 
   const [lastReceipt, setLastReceipt] =
     useState<PayPaymentResponse | null>(null);
 
-  const { summary, isLoading, error, refetch } =
-    usePaymentsSummary(user?.id);
+  const {
+    summary,
+    isLoading,
+    error,
+    refetch,
+  } = usePaymentsSummary(user?.id);
 
   const nextPayablePayment = useMemo(() => {
     if (!summary) {
@@ -87,7 +117,10 @@ export default function PaymentsScreen(): React.JSX.Element {
           subtitle="Consulta y gestiona tus obligaciones financieras."
         />
 
-        <ErrorState message={error} onRetry={refetch} />
+        <ErrorState
+          message={error}
+          onRetry={refetch}
+        />
       </AppScreen>
     );
   }
@@ -102,11 +135,28 @@ export default function PaymentsScreen(): React.JSX.Element {
 
         <EmptyState
           title="Sin información financiera"
-          message="No hay información de pagos para tu usuario."
+          message="No hay información de pagos registrada para tu usuario."
         />
       </AppScreen>
     );
   }
+
+  const totalPending = Number(summary.total_pending);
+  const totalOverdue = Number(summary.total_overdue);
+
+  const financialLabel =
+    totalOverdue > 0
+      ? 'Con deuda vencida'
+      : totalPending > 0
+        ? 'Pago pendiente'
+        : 'Al día';
+
+  const financialVariant =
+    totalOverdue > 0
+      ? 'error'
+      : totalPending > 0
+        ? 'warning'
+        : 'success';
 
   return (
     <AppScreen>
@@ -118,23 +168,14 @@ export default function PaymentsScreen(): React.JSX.Element {
       <SectionCard title="Estado actual">
         <View style={styles.statusHeader}>
           <Badge
-            label={
-              Number(summary.total_overdue) > 0
-                ? 'Con deuda vencida'
-                : Number(summary.total_pending) > 0
-                  ? 'Pago pendiente'
-                  : 'Al día'
-            }
-            variant={
-              Number(summary.total_overdue) > 0
-                ? 'error'
-                : Number(summary.total_pending) > 0
-                  ? 'warning'
-                  : 'success'
-            }
+            label={financialLabel}
+            variant={financialVariant}
           />
 
-          <AppText color={colors.text.secondary} variant="caption">
+          <AppText
+            color={colors.text.secondary}
+            variant="caption"
+          >
             {summary.financial_status}
           </AppText>
         </View>
@@ -160,7 +201,9 @@ export default function PaymentsScreen(): React.JSX.Element {
       <SectionCard title="Centro de pagos">
         {nextPayablePayment ? (
           <View style={styles.paymentBlock}>
-            <AppText variant="body">{nextPayablePayment.concept}</AppText>
+            <AppText variant="body">
+              {nextPayablePayment.concept}
+            </AppText>
 
             <View style={styles.infoGrid}>
               <InfoItem
@@ -172,22 +215,45 @@ export default function PaymentsScreen(): React.JSX.Element {
                 label="Vencimiento"
                 value={formatDate(nextPayablePayment.due_date)}
               />
+
+              <InfoItem
+                label="Estado"
+                value={
+                  nextPayablePayment.calculated_status === 'overdue'
+                    ? 'Vencido'
+                    : 'Pendiente'
+                }
+              />
             </View>
 
             <Pressable
-              onPress={() => setSelectedPayment(nextPayablePayment)}
-              style={styles.primaryButton}
+              accessibilityRole="button"
+              onPress={() => {
+                setSelectedPayment(nextPayablePayment);
+              }}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed ? styles.buttonPressed : null,
+              ]}
             >
-              <AppText color={colors.text.inverse} variant="body">
+              <AppText
+                color={colors.text.inverse}
+                variant="body"
+              >
                 Pagar ahora
               </AppText>
             </Pressable>
           </View>
         ) : (
           <View style={styles.upToDateBlock}>
-            <AppText variant="body">No tienes cuotas pendientes.</AppText>
+            <AppText variant="body">
+              No tienes cuotas pendientes.
+            </AppText>
 
-            <AppText color={colors.text.secondary} variant="caption">
+            <AppText
+              color={colors.text.secondary}
+              variant="caption"
+            >
               Todos los pagos del periodo{' '}
               {summary.academic_period_name ?? 'actual'} están registrados.
             </AppText>
@@ -195,10 +261,19 @@ export default function PaymentsScreen(): React.JSX.Element {
         )}
 
         <Pressable
-          onPress={() => setIsHistoryVisible(true)}
-          style={styles.secondaryButton}
+          accessibilityRole="button"
+          onPress={() => {
+            setIsHistoryVisible(true);
+          }}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed ? styles.buttonPressed : null,
+          ]}
         >
-          <AppText color={colors.text.primary} variant="body">
+          <AppText
+            color={colors.text.primary}
+            variant="body"
+          >
             Ver historial de pagos
           </AppText>
         </Pressable>
@@ -206,29 +281,46 @@ export default function PaymentsScreen(): React.JSX.Element {
 
       {lastReceipt ? (
         <SectionCard title="Última operación">
-          <AppText color={colors.status.success} variant="body">
+          <AppText
+            color={colors.status.success}
+            variant="body"
+          >
             Pago registrado correctamente.
           </AppText>
 
-          <InfoItem
-            label="Código"
-            value={lastReceipt.operation_code}
-          />
+          <View style={styles.infoGrid}>
+            <InfoItem
+              label="Código"
+              value={lastReceipt.operation_code}
+            />
 
-          <InfoItem
-            label="Monto"
-            value={formatMoney(lastReceipt.amount_paid)}
-          />
+            <InfoItem
+              label="Monto"
+              value={formatMoney(lastReceipt.amount_paid)}
+            />
+
+            <InfoItem
+              label="Estado"
+              value={lastReceipt.status}
+            />
+
+            <InfoItem
+              label="Fecha"
+              value={formatDate(lastReceipt.paid_at)}
+            />
+          </View>
         </SectionCard>
       ) : null}
 
       {user?.id ? (
-        <PaymentMiniChat userId={user.id} summary={summary} />
+        <PaymentMiniChat userId={user.id} />
       ) : null}
 
       <PaymentCheckoutModal
         payment={selectedPayment}
-        onClose={() => setSelectedPayment(null)}
+        onClose={() => {
+          setSelectedPayment(null);
+        }}
         onSuccess={(response) => {
           void handlePaymentSuccess(response);
         }}
@@ -237,7 +329,9 @@ export default function PaymentsScreen(): React.JSX.Element {
       <PaymentHistoryModal
         items={summary.payment_history}
         visible={isHistoryVisible}
-        onClose={() => setIsHistoryVisible(false)}
+        onClose={() => {
+          setIsHistoryVisible(false);
+        }}
       />
     </AppScreen>
   );
@@ -264,6 +358,7 @@ const styles = StyleSheet.create({
 
   primaryButton: {
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.lg,
     backgroundColor: colors.brand.primary,
     padding: spacing.md,
@@ -271,10 +366,15 @@ const styles = StyleSheet.create({
 
   secondaryButton: {
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border.strong,
     backgroundColor: colors.background.secondary,
     padding: spacing.md,
+  },
+
+  buttonPressed: {
+    opacity: 0.75,
   },
 });
