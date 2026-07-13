@@ -1,0 +1,1721 @@
+
+============================================================
+FILE: docker-compose.yml
+============================================================
+
+services:
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+    container_name: auth-service
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./backend/services/auth-service/.env
+    volumes:
+      - ./backend/services/auth-service:/app
+    restart: always
+
+  study-service:
+    build:
+      context: ./backend/services/study-service
+    container_name: study-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./backend/services/study-service/.env
+    volumes:
+      - ./backend/services/study-service:/app
+    restart: always
+
+  courses-service:
+    build:
+      context: ./backend/services/courses-service
+    container_name: courses-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./backend/services/courses-service/.env
+    volumes:
+      - ./backend/services/courses-service:/app
+    restart: always
+
+  questions-service:
+    build:
+      context: ./backend/services/questions-service
+    container_name: questions-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - ./backend/services/questions-service/.env
+    volumes:
+      - ./backend/services/questions-service:/app
+    restart: always
+
+  payments-service:
+    build:
+      context: ./backend/services/payments-service
+    container_name: payments-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - ./backend/services/payments-service/.env
+    volumes:
+      - ./backend/services/payments-service:/app
+    restart: always
+
+  teachers-service:
+    build:
+      context: ./backend/services/teachers-service
+    container_name: teachers-service
+    ports:
+      - "8006:8006"
+    env_file:
+      - ./backend/services/teachers-service/.env
+    volumes:
+      - ./backend/services/teachers-service:/app
+    restart: always
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/gateway/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - study-service
+      - courses-service
+      - questions-service
+      - payments-service
+      - teachers-service
+    restart: always
+
+============================================================
+FILE: backend/api-gateway/nginx.conf
+============================================================
+FILE NOT FOUND
+
+============================================================
+FILE: backend/gateway/nginx.conf
+============================================================
+FILE NOT FOUND
+
+============================================================
+FILE: nginx.conf
+============================================================
+FILE NOT FOUND
+
+============================================================
+FILE: backend/services/auth-service/app/core/security.py
+============================================================
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from app.config.settings import settings
+
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(
+    plain_password: str,
+    hashed_password: str,
+) -> bool:
+    return pwd_context.verify(
+        plain_password,
+        hashed_password,
+    )
+
+
+def create_access_token(
+    *,
+    user_id: int,
+    email: str,
+    role: str,
+) -> str:
+    now = datetime.now(timezone.utc)
+
+    expire = now + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+    )
+
+    payload: dict[str, Any] = {
+        "sub": email,
+        "user_id": user_id,
+        "role": role,
+        "type": "access",
+        "iat": now,
+        "exp": expire,
+        "iss": settings.JWT_ISSUER,
+        "aud": settings.JWT_AUDIENCE,
+    }
+
+    return jwt.encode(
+        payload,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+
+def decode_access_token(token: str) -> dict[str, Any]:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            audience=settings.JWT_AUDIENCE,
+        )
+    except JWTError as error:
+        raise ValueError("Invalid access token.") from error
+
+    if payload.get("type") != "access":
+        raise ValueError("Invalid token type.")
+
+    return payload
+
+============================================================
+FILE: backend/services/auth-service/app/core/dependencies.py
+============================================================
+from typing import Any
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+
+from app.core.security import decode_access_token
+from app.db.session import get_db
+from app.models.user_model import User
+from app.repositories.user_repository import get_user_by_email
+
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/users/login",
+)
+
+
+def build_credentials_exception() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No se pudieron validar las credenciales.",
+        headers={
+            "WWW-Authenticate": "Bearer",
+        },
+    )
+
+
+def get_token_payload(
+    token: str = Depends(oauth2_scheme),
+) -> dict[str, Any]:
+    try:
+        payload = decode_access_token(token)
+    except ValueError as error:
+        raise build_credentials_exception() from error
+
+    email = payload.get("sub")
+    user_id = payload.get("user_id")
+
+    if not email or not user_id:
+        raise build_credentials_exception()
+
+    return payload
+
+
+def get_current_user(
+    payload: dict[str, Any] = Depends(get_token_payload),
+    db: Session = Depends(get_db),
+) -> User:
+    email = payload.get("sub")
+
+    if not isinstance(email, str):
+        raise build_credentials_exception()
+
+    user = get_user_by_email(
+        db,
+        email,
+    )
+
+    if user is None:
+        raise build_credentials_exception()
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El usuario se encuentra inactivo.",
+        )
+
+    token_user_id = payload.get("user_id")
+
+    if token_user_id != user.id:
+        raise build_credentials_exception()
+
+    return user
+
+============================================================
+FILE: backend/services/auth-service/app/config/settings.py
+============================================================
+from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    APP_NAME: str = "Academic Chatbot Platform"
+    APP_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = "development"
+    API_V1_PREFIX: str = "/api/v1"
+
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    JWT_ISSUER: str = "academic-chatbot-platform"
+    JWT_AUDIENCE: str = "academic-chatbot-mobile"
+
+    DATABASE_URL: str
+
+    RABBITMQ_URL: str = (
+        "amqp://guest:guest@rabbitmq:5672/"
+    )
+
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:8081",
+    ]
+
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
+
+settings = Settings()
+
+============================================================
+FILE: backend/services/auth-service/app/routes/user_route.py
+============================================================
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+
+from app.core.dependencies import get_current_user
+from app.db.session import get_db
+from app.models.user_model import User
+from app.schemas.token_schema import Token
+from app.schemas.user_schema import (
+    CurrentUserResponse,
+    UserCreate,
+    UserResponse,
+)
+from app.services.user_service import (
+    login_user,
+    register_user,
+)
+from app.utils.university_resolver import resolve_university_by_email
+
+
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+)
+
+
+def build_current_user_response(
+    user: User,
+) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        university=resolve_university_by_email(user.email),
+        role=user.role,
+        career=user.career,
+        cycle=user.cycle,
+        is_active=user.is_active,
+    )
+
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+):
+    created_user = register_user(
+        db=db,
+        full_name=user.full_name,
+        email=user.email,
+        password=user.password,
+        career=user.career,
+        cycle=user.cycle,
+    )
+
+    if not created_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El correo ya se encuentra registrado.",
+        )
+
+    return created_user
+
+
+@router.post(
+    "/login",
+    response_model=Token,
+)
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    access_token = login_user(
+        db=db,
+        email=form_data.username,
+        password=form_data.password,
+    )
+
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales inválidas.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
+@router.get(
+    "/me",
+    response_model=CurrentUserResponse,
+)
+def get_me(
+    current_user: User = Depends(get_current_user),
+):
+    return build_current_user_response(current_user)
+
+
+@router.get(
+    "/validate",
+    response_model=CurrentUserResponse,
+    include_in_schema=False,
+)
+def validate_access_token(
+    current_user: User = Depends(get_current_user),
+):
+    return build_current_user_response(current_user)
+
+============================================================
+FILE: backend/services/auth-service/app/services/user_service.py
+============================================================
+from sqlalchemy.orm import Session
+
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    verify_password,
+)
+from app.repositories.user_repository import (
+    create_user,
+    get_user_by_email,
+)
+
+
+def register_user(
+    db: Session,
+    full_name: str,
+    email: str,
+    password: str,
+    career: str,
+    cycle: int,
+):
+    normalized_email = email.strip().lower()
+
+    existing_user = get_user_by_email(
+        db,
+        normalized_email,
+    )
+
+    if existing_user:
+        return None
+
+    hashed_password = hash_password(password)
+
+    return create_user(
+        db,
+        full_name.strip(),
+        normalized_email,
+        hashed_password,
+        career,
+        cycle,
+    )
+
+
+def login_user(
+    db: Session,
+    email: str,
+    password: str,
+) -> str | None:
+    normalized_email = email.strip().lower()
+
+    user = get_user_by_email(
+        db,
+        normalized_email,
+    )
+
+    if not user:
+        return None
+
+    if not user.is_active:
+        return None
+
+    if not verify_password(
+        password,
+        user.password,
+    ):
+        return None
+
+    return create_access_token(
+        user_id=user.id,
+        email=user.email,
+        role=user.role,
+    )
+
+============================================================
+FILE: backend/services/auth-service/app/schemas/token_schema.py
+============================================================
+from pydantic import BaseModel
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+============================================================
+FILE: backend/services/auth-service/app/schemas/user_schema.py
+============================================================
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+)
+
+
+class UserCreate(BaseModel):
+    full_name: str = Field(
+        min_length=3,
+        max_length=120,
+    )
+    email: EmailStr
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
+    career: str = Field(
+        min_length=3,
+        max_length=150,
+    )
+    cycle: int = Field(
+        ge=1,
+        le=10,
+    )
+
+
+class UserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: EmailStr
+    role: str
+    career: str | None = None
+    cycle: int | None = None
+    is_active: bool
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: EmailStr
+    university: str | None = None
+    role: str
+    career: str | None = None
+    cycle: int | None = None
+    is_active: bool
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+============================================================
+FILE: backend/services/auth-service/app/main.py
+============================================================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config.settings import settings
+from app.routes.user_route import router as user_router
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+API_PREFIX = "/api/v1"
+
+app.include_router(
+    user_router,
+    prefix=f"{API_PREFIX}/users",
+    tags=["Users"],
+)
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "auth-service",
+    }
+
+============================================================
+FILE: backend/services/study-service/app/routes/study_route.py
+============================================================
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.learning_platform_schema import (
+    LearningPlatformResponse,
+)
+from app.schemas.study_schema import (
+    CertificationResponse,
+    CoursePrerequisitesResponse,
+    CourseUnlocksResponse,
+    CurriculumResponse,
+    FullCurriculumResponse,
+    LearningRouteResponse,
+    NextCycleResponse,
+    SpecializationPathResponse,
+)
+from app.services.study_service import StudyService
+
+
+router = APIRouter(
+    prefix="/study",
+    tags=["Study"],
+)
+
+
+@router.get("/health")
+def health():
+    return {
+        "service": "study-service",
+        "status": "healthy",
+    }
+
+
+@router.get("/db-check")
+def db_check(
+    db: Session = Depends(get_db),
+):
+    result = (
+        db.execute(
+            text("SELECT 1 AS ok")
+        )
+        .mappings()
+        .first()
+    )
+
+    return {
+        "database": "connected",
+        "result": (
+            dict(result)
+            if result
+            else None
+        ),
+    }
+
+
+@router.get(
+    "/curriculum",
+    response_model=list[CurriculumResponse],
+)
+def get_curriculum(
+    career: str = Query(
+        ...,
+        min_length=3,
+        description="Nombre de la carrera.",
+    ),
+    cycle: int | None = Query(
+        default=None,
+        ge=1,
+        le=10,
+        description="Ciclo académico.",
+    ),
+    curriculum_code: str = Query(
+        default="C2",
+        min_length=1,
+        max_length=30,
+        description="Código del plan curricular.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_curriculum(
+        career=career,
+        cycle=cycle,
+        curriculum_code=curriculum_code,
+    )
+
+
+@router.get(
+    "/curriculum/full",
+    response_model=FullCurriculumResponse,
+)
+def get_full_curriculum(
+    career: str = Query(
+        ...,
+        min_length=3,
+        description="Nombre de la carrera.",
+    ),
+    curriculum_code: str = Query(
+        default="C2",
+        min_length=1,
+        max_length=30,
+        description="Código del plan curricular.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_full_curriculum(
+        career=career,
+        curriculum_code=curriculum_code,
+    )
+
+
+@router.get(
+    "/specialization-path",
+    response_model=SpecializationPathResponse,
+)
+def get_specialization_path(
+    area: str = Query(
+        ...,
+        min_length=2,
+        description=(
+            "Área profesional: inteligencia artificial, "
+            "DevOps, cloud, ciberseguridad, backend, etc."
+        ),
+    ),
+    career: str = Query(
+        ...,
+        min_length=3,
+        description="Nombre de la carrera.",
+    ),
+    curriculum_code: str = Query(
+        default="C2",
+        min_length=1,
+        max_length=30,
+        description="Código del plan curricular.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_specialization_path(
+        area=area,
+        career=career,
+        curriculum_code=curriculum_code,
+    )
+
+
+@router.get(
+    "/next-cycle/{user_id}",
+    response_model=NextCycleResponse,
+)
+def get_next_cycle_courses(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_next_cycle_courses(
+        user_id=user_id
+    )
+
+
+@router.get(
+    "/course-prerequisites/{course_reference}",
+    response_model=CoursePrerequisitesResponse,
+)
+def get_course_prerequisites(
+    course_reference: str,
+    career: str | None = Query(
+        default=None,
+        description="Carrera para limitar la búsqueda.",
+    ),
+    curriculum_code: str = Query(
+        default="C2",
+        description="Código del plan curricular.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_course_prerequisites(
+        course_reference=course_reference,
+        career=career,
+        curriculum_code=curriculum_code,
+    )
+
+
+@router.get(
+    "/course-unlocks/{course_reference}",
+    response_model=CourseUnlocksResponse,
+)
+def get_course_unlocks(
+    course_reference: str,
+    career: str | None = Query(
+        default=None,
+        description="Carrera para limitar la búsqueda.",
+    ),
+    curriculum_code: str = Query(
+        default="C2",
+        description="Código del plan curricular.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_course_unlocks(
+        course_reference=course_reference,
+        career=career,
+        curriculum_code=curriculum_code,
+    )
+
+
+@router.get(
+    "/certifications",
+    response_model=list[CertificationResponse],
+)
+def get_certifications(
+    area: str | None = Query(
+        default=None,
+        description="Área de interés profesional.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_certifications(
+        area=area
+    )
+
+
+@router.get(
+    "/learning-route/{user_id}",
+    response_model=list[LearningRouteResponse],
+)
+def get_learning_route(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_learning_routes_by_user(
+        user_id=user_id
+    )
+
+
+@router.get(
+    "/learning-platforms",
+    response_model=list[LearningPlatformResponse],
+)
+def get_learning_platforms(
+    area: str | None = Query(
+        default=None,
+        description=(
+            "Área profesional, por ejemplo: "
+            "cloud, redes, backend o DevOps."
+        ),
+    ),
+    db: Session = Depends(get_db),
+):
+    service = StudyService(db)
+
+    return service.get_learning_platforms(
+        area=area
+    )
+
+============================================================
+FILE: backend/services/courses-service/app/routes/course_route.py
+============================================================
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.course_schema import (
+    CourseDetailResponse,
+    CourseResponse,
+    CourseScheduleResponse,
+    CourseSyllabusResponse,
+    StudentCourseResponse,
+)
+from app.services.course_service import CourseService
+
+router = APIRouter(prefix="/courses", tags=["Courses"])
+
+
+@router.get("/health")
+def health():
+    return {
+        "service": "courses-service",
+        "status": "healthy",
+    }
+
+
+@router.get("/db-check")
+def db_check(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT 1 AS ok")).mappings().first()
+
+    return {
+        "database": "connected",
+        "result": dict(result) if result else None,
+    }
+
+
+@router.get("/", response_model=list[CourseResponse])
+def get_all_courses(
+    career: str | None = Query(None, description="Nombre de la carrera"),
+    cycle: int | None = Query(None, description="Ciclo académico"),
+    db: Session = Depends(get_db),
+):
+    service = CourseService(db)
+
+    return service.get_all_courses(career=career, cycle=cycle)
+
+
+@router.get("/my-courses/{user_id}", response_model=list[StudentCourseResponse])
+def get_student_courses(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    service = CourseService(db)
+
+    return service.get_student_courses(user_id=user_id)
+
+
+@router.get("/detail/{course_reference}", response_model=CourseDetailResponse)
+def get_course_detail(
+    course_reference: str,
+    db: Session = Depends(get_db),
+):
+    service = CourseService(db)
+
+    return service.get_course_detail(course_reference=course_reference)
+
+
+@router.get("/schedule/{course_reference}", response_model=list[CourseScheduleResponse])
+def get_course_schedule(
+    course_reference: str,
+    db: Session = Depends(get_db),
+):
+    service = CourseService(db)
+
+    return service.get_course_schedule(course_reference=course_reference)
+
+
+@router.get("/syllabus/{course_reference}", response_model=list[CourseSyllabusResponse])
+def get_course_syllabus(
+    course_reference: str,
+    db: Session = Depends(get_db),
+):
+    service = CourseService(db)
+
+    return service.get_course_syllabus(course_reference=course_reference)
+
+============================================================
+FILE: backend/services/courses-service/app/routes/courses_route.py
+============================================================
+FILE NOT FOUND
+
+============================================================
+FILE: backend/services/payments-service/app/routes/payment_route.py
+============================================================
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.payment_schema import (
+    AccountSummaryResponse,
+    PayPaymentRequest,
+    PayPaymentResponse,
+    PaymentHistoryResponse,
+    PaymentResponse,
+)
+from app.services.payment_service import PaymentService
+
+router = APIRouter(prefix="/payments", tags=["Payments"])
+
+
+@router.get("/health")
+def health():
+    return {
+        "service": "payments-service",
+        "status": "healthy",
+    }
+
+
+@router.get("/db-check")
+def db_check(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT 1 AS ok")).mappings().first()
+
+    return {
+        "database": "connected",
+        "result": dict(result) if result else None,
+    }
+
+
+@router.get("/pending/{user_id}", response_model=list[PaymentResponse])
+def get_pending_payments(
+    user_id: int,
+    academic_period_code: str | None = Query(
+        None,
+        description="Código del periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.get_pending_payments(
+        user_id=user_id,
+        academic_period_code=academic_period_code,
+    )
+
+
+@router.get("/overdue/{user_id}", response_model=list[PaymentResponse])
+def get_overdue_payments(
+    user_id: int,
+    academic_period_code: str | None = Query(
+        None,
+        description="Código del periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.get_overdue_payments(
+        user_id=user_id,
+        academic_period_code=academic_period_code,
+    )
+
+
+@router.get("/history/{user_id}", response_model=list[PaymentHistoryResponse])
+def get_payment_history(
+    user_id: int,
+    academic_period_code: str | None = Query(
+        None,
+        description="Código del periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.get_payment_history(
+        user_id=user_id,
+        academic_period_code=academic_period_code,
+    )
+
+
+@router.get("/summary/{user_id}", response_model=AccountSummaryResponse)
+def get_account_summary(
+    user_id: int,
+    academic_period_code: str | None = Query(
+        None,
+        description="Código del periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.get_account_summary(
+        user_id=user_id,
+        academic_period_code=academic_period_code,
+    )
+
+
+@router.post("/pay/{payment_id}", response_model=PayPaymentResponse)
+def pay_payment(
+    payment_id: int,
+    payload: PayPaymentRequest,
+    db: Session = Depends(get_db),
+):
+    service = PaymentService(db)
+
+    return service.pay_payment(
+        payment_id=payment_id,
+        payment_method_code=payload.payment_method_code,
+    )
+
+============================================================
+FILE: backend/services/teachers-service/app/routes/teacher_route.py
+============================================================
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.teacher_schema import (
+    TeacherCourseResponse,
+    TeacherDetailResponse,
+    TeacherResponse,
+)
+from app.services.teacher_service import TeacherService
+
+router = APIRouter(prefix="/teachers", tags=["Teachers"])
+
+
+@router.get("/health")
+def health():
+    return {
+        "service": "teachers-service",
+        "status": "healthy",
+    }
+
+
+@router.get("/db-check")
+def db_check(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT 1 AS ok")).mappings().first()
+
+    return {
+        "database": "connected",
+        "result": dict(result) if result else None,
+    }
+
+
+@router.get("/", response_model=list[TeacherResponse])
+def get_all_teachers(
+    db: Session = Depends(get_db),
+):
+    service = TeacherService(db)
+
+    return service.get_all_teachers()
+
+
+@router.get("/my-teachers/{user_id}", response_model=list[TeacherCourseResponse])
+def get_my_teachers(
+    user_id: int,
+    academic_period: str | None = Query(
+        None,
+        description="Periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = TeacherService(db)
+
+    return service.get_teachers_by_user_courses(
+        user_id=user_id,
+        academic_period=academic_period,
+    )
+
+
+@router.get("/detail/{teacher_reference}", response_model=TeacherDetailResponse)
+def get_teacher_detail(
+    teacher_reference: str,
+    academic_period: str | None = Query(
+        None,
+        description="Periodo académico. Ejemplo: 202601",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = TeacherService(db)
+
+    return service.get_teacher_detail(
+        teacher_reference=teacher_reference,
+        academic_period=academic_period,
+    )
+
+============================================================
+FILE: backend/services/questions-service/app/routes/question_route.py
+============================================================
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.question_schema import (
+    AskQuestionRequest,
+    AskQuestionResponse,
+    ChatMessageResponse,
+    ChatSessionResponse,
+)
+from app.services.question_service import QuestionService
+
+
+router = APIRouter(
+    prefix="/questions",
+    tags=["Questions"],
+)
+
+
+@router.get("/health")
+def health():
+    return {
+        "service": "questions-service",
+        "status": "healthy",
+    }
+
+
+@router.get("/db-check")
+def db_check(
+    db: Session = Depends(get_db),
+):
+    result = (
+        db.execute(
+            text("SELECT 1 AS ok")
+        )
+        .mappings()
+        .first()
+    )
+
+    return {
+        "database": "connected",
+        "result": dict(result) if result else None,
+    }
+
+
+@router.post(
+    "/ask",
+    response_model=AskQuestionResponse,
+)
+async def ask_question(
+    payload: AskQuestionRequest,
+    db: Session = Depends(get_db),
+):
+    service = QuestionService(db)
+
+    return await service.ask_question(
+        user_id=payload.user_id,
+        question=payload.question,
+        session_id=payload.session_id,
+        persist=payload.persist,
+    )
+
+
+@router.get(
+    "/sessions/{user_id}",
+    response_model=list[ChatSessionResponse],
+)
+def get_user_sessions(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    service = QuestionService(db)
+
+    return service.get_user_sessions(
+        user_id=user_id,
+    )
+
+
+@router.get(
+    "/sessions/{session_id}/messages",
+    response_model=list[ChatMessageResponse],
+)
+def get_session_messages(
+    session_id: int,
+    user_id: int | None = Query(
+        default=None,
+        description="Identificador del propietario de la sesión.",
+    ),
+    db: Session = Depends(get_db),
+):
+    service = QuestionService(db)
+
+    return service.get_session_messages(
+        session_id=session_id,
+        user_id=user_id,
+    )
+
+============================================================
+FILE: frontend/mobile-app/src/shared/services/api-client.ts
+============================================================
+import { buildApiUrl } from '@/config/api';
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+type RequestOptions = {
+  token?: string | null;
+  body?: unknown;
+  headers?: Record<string, string>;
+};
+
+type UnauthorizedHandler = () => void | Promise<void>;
+
+let currentAccessToken: string | null = null;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly responseBody: string;
+
+  constructor(
+    message: string,
+    status: number,
+    responseBody: string,
+  ) {
+    super(message);
+
+    this.name = 'ApiError';
+    this.status = status;
+    this.responseBody = responseBody;
+  }
+}
+
+export function setApiAccessToken(token: string | null): void {
+  currentAccessToken = token?.trim() || null;
+}
+
+export function setApiUnauthorizedHandler(
+  handler: UnauthorizedHandler | null,
+): void {
+  unauthorizedHandler = handler;
+}
+
+async function parseErrorResponse(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+async function request<T>(
+  path: string,
+  method: HttpMethod,
+  options: RequestOptions = {},
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...options.headers,
+  };
+
+  let body: BodyInit | undefined;
+
+  if (options.body instanceof URLSearchParams) {
+    headers['Content-Type'] =
+      'application/x-www-form-urlencoded';
+
+    body = options.body.toString();
+  } else if (options.body !== undefined) {
+    headers['Content-Type'] =
+      'application/json; charset=utf-8';
+
+    body = JSON.stringify(options.body);
+  }
+
+  const resolvedToken =
+    options.token === undefined
+      ? currentAccessToken
+      : options.token?.trim() || null;
+
+  if (resolvedToken) {
+    headers.Authorization = `Bearer ${resolvedToken}`;
+  }
+
+  const response = await fetch(buildApiUrl(path), {
+    method,
+    headers,
+    body,
+  });
+
+  if (!response.ok) {
+    const errorText = await parseErrorResponse(response);
+
+    console.error('API error:', {
+      path,
+      status: response.status,
+      body: errorText,
+    });
+
+    if (
+      response.status === 401 &&
+      resolvedToken &&
+      unauthorizedHandler
+    ) {
+      await unauthorizedHandler();
+    }
+
+    throw new ApiError(
+      resolveErrorMessage(response.status),
+      response.status,
+      errorText,
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function resolveErrorMessage(status: number): string {
+  if (status === 400) {
+    return 'La solicitud contiene datos inválidos.';
+  }
+
+  if (status === 401) {
+    return 'Tu sesión expiró. Inicia sesión nuevamente.';
+  }
+
+  if (status === 403) {
+    return 'No tienes permiso para realizar esta acción.';
+  }
+
+  if (status === 404) {
+    return 'No se encontró la información solicitada.';
+  }
+
+  if (status === 409) {
+    return 'La operación no pudo completarse por un conflicto.';
+  }
+
+  if (status === 422) {
+    return 'Algunos datos enviados no son válidos.';
+  }
+
+  if (status >= 500) {
+    return 'El servidor no pudo procesar la solicitud.';
+  }
+
+  return 'No se pudo completar la solicitud.';
+}
+
+export const apiClient = {
+  get: <T>(
+    path: string,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'GET', options),
+
+  post: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'POST', {
+      ...options,
+      body,
+    }),
+
+  put: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'PUT', {
+      ...options,
+      body,
+    }),
+
+  patch: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'PATCH', {
+      ...options,
+      body,
+    }),
+
+  delete: <T>(
+    path: string,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'DELETE', options),
+
+  postForm: <T>(
+    path: string,
+    formData: URLSearchParams,
+    options?: RequestOptions,
+  ): Promise<T> =>
+    request<T>(path, 'POST', {
+      ...options,
+      body: formData,
+    }),
+};
+
+============================================================
+FILE: frontend/mobile-app/src/features/auth/context/AuthContext.tsx
+============================================================
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import { getCurrentUser } from '@/features/auth/services/auth.service';
+import {
+  getAuthToken,
+  removeAuthToken,
+  saveAuthToken,
+} from '@/features/auth/storage/auth.storage';
+import type { AuthUser } from '@/features/auth/types/auth.types';
+import {
+  setApiAccessToken,
+  setApiUnauthorizedHandler,
+} from '@/shared/services/api-client';
+
+type AuthContextValue = {
+  token: string | null;
+  user: AuthUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  signIn: (token: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+};
+
+export const AuthContext =
+  createContext<AuthContextValue | null>(null);
+
+type AuthProviderProps = {
+  children: React.ReactNode;
+};
+
+export function AuthProvider({
+  children,
+}: AuthProviderProps): React.JSX.Element {
+  const [token, setToken] =
+    useState<string | null>(null);
+
+  const [user, setUser] =
+    useState<AuthUser | null>(null);
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const clearSession = useCallback(
+    async (): Promise<void> => {
+      setApiAccessToken(null);
+
+      await removeAuthToken();
+
+      setToken(null);
+      setUser(null);
+    },
+    [],
+  );
+
+  const refreshUser = useCallback(
+    async (): Promise<void> => {
+      if (!token) {
+        await clearSession();
+        return;
+      }
+
+      try {
+        const currentUser = await getCurrentUser(token);
+
+        setUser(currentUser);
+      } catch {
+        await clearSession();
+      }
+    },
+    [clearSession, token],
+  );
+
+  useEffect(() => {
+    setApiUnauthorizedHandler(() => {
+      void clearSession();
+    });
+
+    return () => {
+      setApiUnauthorizedHandler(null);
+    };
+  }, [clearSession]);
+
+  useEffect(() => {
+    async function loadSession(): Promise<void> {
+      try {
+        const storedToken = await getAuthToken();
+
+        if (!storedToken) {
+          setApiAccessToken(null);
+          return;
+        }
+
+        setApiAccessToken(storedToken);
+
+        const currentUser =
+          await getCurrentUser(storedToken);
+
+        setToken(storedToken);
+        setUser(currentUser);
+      } catch {
+        await clearSession();
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadSession();
+  }, [clearSession]);
+
+  const signIn = useCallback(
+    async (nextToken: string): Promise<void> => {
+      const normalizedToken = nextToken.trim();
+
+      setApiAccessToken(normalizedToken);
+
+      try {
+        const currentUser =
+          await getCurrentUser(normalizedToken);
+
+        await saveAuthToken(normalizedToken);
+
+        setToken(normalizedToken);
+        setUser(currentUser);
+      } catch (error) {
+        setApiAccessToken(null);
+        throw error;
+      }
+    },
+    [],
+  );
+
+  const signOut = useCallback(
+    async (): Promise<void> => {
+      await clearSession();
+    },
+    [clearSession],
+  );
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      token,
+      user,
+      isAuthenticated: Boolean(token && user),
+      isLoading,
+      signIn,
+      signOut,
+      refreshUser,
+    }),
+    [
+      token,
+      user,
+      isLoading,
+      signIn,
+      signOut,
+      refreshUser,
+    ],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+============================================================
+FILE: frontend/mobile-app/src/features/auth/services/auth.service.ts
+============================================================
+import { endpoints } from '@/config/endpoints';
+import { apiClient } from '@/shared/services/api-client';
+
+import type {
+  AuthUser,
+  LoginResponse,
+  RegisterPayload,
+  RegisterResponse,
+} from '@/features/auth/types/auth.types';
+
+type LoginPayload = {
+  email: string;
+  password: string;
+};
+
+export async function loginWithCredentials(
+  payload: LoginPayload,
+): Promise<LoginResponse> {
+  const formData = new URLSearchParams();
+
+  formData.append('username', payload.email.trim().toLowerCase());
+  formData.append('password', payload.password);
+
+  const data = await apiClient.postForm<LoginResponse>(
+    endpoints.auth.login,
+    formData,
+  );
+
+  if (!data.access_token) {
+    throw new Error('El backend no devolvió access_token.');
+  }
+
+  return {
+    access_token: data.access_token.trim(),
+    token_type: data.token_type,
+  };
+}
+
+export async function registerUser(
+  payload: RegisterPayload,
+): Promise<RegisterResponse> {
+  return apiClient.post<RegisterResponse>(endpoints.auth.register, {
+    full_name: payload.fullName.trim(),
+    email: payload.email.trim().toLowerCase(),
+    password: payload.password,
+    career: payload.career,
+    cycle: payload.cycle,
+  });
+}
+
+export async function getCurrentUser(token: string): Promise<AuthUser> {
+  return apiClient.get<AuthUser>(endpoints.auth.me, {
+    token,
+  });
+}
