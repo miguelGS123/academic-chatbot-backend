@@ -5,7 +5,9 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.question_repository import QuestionRepository
+from app.repositories.question_repository import (
+    QuestionRepository,
+)
 from app.services.gateway_client import GatewayClient
 from app.services.gemini_service import GeminiService
 from app.services.intent_router import IntentRouter
@@ -29,11 +31,15 @@ class QuestionService:
 
         if not clean_question:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY
+                ),
                 detail="La pregunta no puede estar vacía.",
             )
 
-        user = self.repository.get_user_by_id(user_id)
+        user = self.repository.get_user_by_id(
+            user_id
+        )
 
         if not user:
             raise HTTPException(
@@ -44,10 +50,12 @@ class QuestionService:
         chat_session = None
 
         if persist:
-            chat_session = self._resolve_chat_session(
-                user_id=user_id,
-                question=clean_question,
-                session_id=session_id,
+            chat_session = (
+                self._resolve_chat_session(
+                    user_id=user_id,
+                    question=clean_question,
+                    session_id=session_id,
+                )
             )
 
         intents = await asyncio.to_thread(
@@ -59,7 +67,11 @@ class QuestionService:
             user=user,
             question=clean_question,
             intents=intents,
-            session_id=chat_session.id if chat_session else None,
+            session_id=(
+                chat_session.id
+                if chat_session
+                else None
+            ),
         )
 
         answer = await asyncio.to_thread(
@@ -68,7 +80,10 @@ class QuestionService:
             context,
         )
 
-        if persist and chat_session is not None:
+        if (
+            persist
+            and chat_session is not None
+        ):
             self.repository.create_chat_messages(
                 session_id=chat_session.id,
                 user_id=user_id,
@@ -77,14 +92,23 @@ class QuestionService:
             )
 
         return {
-            "session_id": chat_session.id if chat_session else None,
+            "session_id": (
+                chat_session.id
+                if chat_session
+                else None
+            ),
             "user_id": user_id,
             "question": clean_question,
             "answer": answer,
         }
 
-    def get_user_sessions(self, user_id: int):
-        user = self.repository.get_user_by_id(user_id)
+    def get_user_sessions(
+        self,
+        user_id: int,
+    ):
+        user = self.repository.get_user_by_id(
+            user_id
+        )
 
         if not user:
             raise HTTPException(
@@ -92,8 +116,10 @@ class QuestionService:
                 detail="Usuario no encontrado.",
             )
 
-        return self.repository.get_sessions_by_user(
-            user_id=user_id,
+        return (
+            self.repository.get_sessions_by_user(
+                user_id=user_id
+            )
         )
 
     def get_session_messages(
@@ -101,8 +127,11 @@ class QuestionService:
         session_id: int,
         user_id: int | None = None,
     ):
-        chat_session = self.repository.get_chat_session_by_id(
-            session_id=session_id,
+        chat_session = (
+            self.repository
+            .get_chat_session_by_id(
+                session_id=session_id
+            )
         )
 
         if not chat_session:
@@ -111,14 +140,23 @@ class QuestionService:
                 detail="Sesión de chat no encontrada.",
             )
 
-        if user_id is not None and chat_session.user_id != user_id:
+        if (
+            user_id is not None
+            and chat_session.user_id != user_id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="La sesión no pertenece al usuario.",
+                detail=(
+                    "La sesión no pertenece "
+                    "al usuario."
+                ),
             )
 
-        return self.repository.get_messages_by_session(
-            session_id=session_id,
+        return (
+            self.repository
+            .get_messages_by_session(
+                session_id=session_id
+            )
         )
 
     def _resolve_chat_session(
@@ -128,13 +166,19 @@ class QuestionService:
         session_id: int | None,
     ):
         if session_id is None:
-            return self.repository.create_chat_session(
-                user_id=user_id,
-                title=question[:80],
+            return (
+                self.repository
+                .create_chat_session(
+                    user_id=user_id,
+                    title=question[:80],
+                )
             )
 
-        chat_session = self.repository.get_chat_session_by_id(
-            session_id=session_id,
+        chat_session = (
+            self.repository
+            .get_chat_session_by_id(
+                session_id=session_id
+            )
         )
 
         if not chat_session:
@@ -146,7 +190,10 @@ class QuestionService:
         if chat_session.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="La sesión no pertenece al usuario.",
+                detail=(
+                    "La sesión no pertenece "
+                    "al usuario."
+                ),
             )
 
         return chat_session
@@ -170,7 +217,8 @@ class QuestionService:
 
         if session_id is not None:
             recent_messages = (
-                self.repository.get_recent_messages_by_session(
+                self.repository
+                .get_recent_messages_by_session(
                     session_id=session_id,
                     limit=8,
                 )
@@ -179,73 +227,64 @@ class QuestionService:
         if recent_messages:
             context_parts.append(
                 self._format_context_block(
-                    title="MEMORIA RECIENTE DE LA CONVERSACIÓN",
+                    title=(
+                        "MEMORIA RECIENTE "
+                        "DE LA CONVERSACIÓN"
+                    ),
                     data=[
                         {
                             "role": message.role,
                             "message": message.message,
                         }
-                        for message in recent_messages
+                        for message
+                        in recent_messages
                     ],
                 )
             )
 
         external_context = (
-            await self.gateway_client.get_full_student_context(
+            await self.gateway_client
+            .get_full_student_context(
                 user_id=user.id,
                 intents=intents,
+                question=question,
+                career=user.career,
             )
         )
 
         if external_context:
             context_parts.append(
                 self._format_context_block(
-                    title="DATOS DE LOS MÓDULOS ACADÉMICOS",
+                    title=(
+                        "DATOS DE LOS "
+                        "MÓDULOS ACADÉMICOS"
+                    ),
                     data=external_context,
                 )
             )
 
-        if self._needs_curriculum_context(intents):
-            curriculum = (
-                self.repository.get_curriculum_by_cycle(
-                    career=user.career,
-                    cycle=user.cycle,
-                )
-            )
-
-            if curriculum:
-                context_parts.append(
-                    self._format_context_block(
-                        title="MALLA DEL CICLO ACTUAL",
-                        data=[
-                            {
-                                "course_code": course.course_code,
-                                "course_name": course.course_name,
-                                "cycle": course.cycle,
-                                "credits": course.credits,
-                            }
-                            for course in curriculum
-                        ],
-                    )
-                )
-
         knowledge_items = (
-            self.repository.get_active_knowledge_base(
-                limit=5,
+            self.repository
+            .get_active_knowledge_base(
+                limit=5
             )
         )
 
         if knowledge_items:
             context_parts.append(
                 self._format_context_block(
-                    title="BASE DE CONOCIMIENTO INSTITUCIONAL",
+                    title=(
+                        "BASE DE CONOCIMIENTO "
+                        "INSTITUCIONAL"
+                    ),
                     data=[
                         {
                             "title": item.title,
                             "category": item.category,
                             "content": item.content,
                         }
-                        for item in knowledge_items
+                        for item
+                        in knowledge_items
                     ],
                 )
             )
@@ -256,20 +295,27 @@ class QuestionService:
 REGLAS FINALES
 ========================
 - Usa únicamente la información disponible.
-- No inventes datos académicos, financieros ni institucionales.
-- Si un servicio falló, utiliza los demás datos disponibles.
+- No inventes cursos, ciclos, docentes, pagos, plataformas ni requisitos.
+- Distingue cursos matriculados actualmente de cursos pertenecientes a la malla.
+- Si existe una ruta de especialización, úsala para identificar los cursos relevantes.
+- La relación entre cursos y especializaciones es orientativa, no una mención oficial.
+- Si existe la malla completa, organiza los cursos por ciclo cuando el estudiante lo solicite.
+- No afirmes que el estudiante aprobó un curso solo porque aparezca en la malla curricular.
+- Si el estudiante está en décimo ciclo, puedes decir que esos cursos forman parte de su plan de estudios, pero no asegurar que todos fueron aprobados.
+- Si un microservicio falló, utiliza los demás datos disponibles.
 - Responde directamente a la pregunta actual.
-- No repitas toda la información del módulo.
-- Usa la memoria solamente cuando exista una sesión persistente.
+- No repitas toda la información cuando no sea necesario.
+- Usa memoria solamente cuando exista una sesión persistente.
 - Los mini chats temporales no tienen memoria persistente.
 - No muestres JSON, rutas internas, errores técnicos ni detalles del sistema.
-- Si el usuario pregunta por un aula o salón, cruza cursos, horarios y docentes.
 - Si pregunta por pagos, diferencia pagado, pendiente y vencido.
-- Si pregunta por un docente, muestra correo, curso, sección o aula solo cuando existan.
+- Si pregunta por docentes, muestra únicamente los datos disponibles.
 """.strip()
         )
 
-        return "\n\n".join(context_parts)
+        return "\n\n".join(
+            context_parts
+        )
 
     def _build_student_block(
         self,
@@ -293,21 +339,6 @@ Pregunta actual:
 Intenciones detectadas:
 {", ".join(intents)}
 """.strip()
-
-    def _needs_curriculum_context(
-        self,
-        intents: list[str],
-    ) -> bool:
-        relevant_intents = {
-            "all",
-            "study",
-            "courses",
-            "certifications",
-        }
-
-        return bool(
-            relevant_intents.intersection(intents)
-        )
 
     def _format_context_block(
         self,

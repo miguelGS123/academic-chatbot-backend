@@ -1,34 +1,39 @@
 from sqlalchemy.orm import Session
 
-from app.models.academic_context_model import StudyCurriculum, User
-from app.models.question_model import ChatMessage, ChatSession, KnowledgeBase
+from app.models.academic_context_model import User
+from app.models.question_model import (
+    ChatMessage,
+    ChatSession,
+    KnowledgeBase,
+)
 
 
 class QuestionRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user_by_id(self, user_id: int):
+    def get_user_by_id(
+        self,
+        user_id: int,
+    ):
         return (
             self.db.query(User)
             .filter(User.id == user_id)
             .first()
         )
 
-    def get_curriculum_by_cycle(self, career: str, cycle: int):
-        return (
-            self.db.query(StudyCurriculum)
-            .filter(StudyCurriculum.career.ilike(career))
-            .filter(StudyCurriculum.cycle == cycle)
-            .order_by(StudyCurriculum.course_code.asc())
-            .all()
-        )
-
-    def get_active_knowledge_base(self, limit: int = 5):
+    def get_active_knowledge_base(
+        self,
+        limit: int = 5,
+    ):
         return (
             self.db.query(KnowledgeBase)
-            .filter(KnowledgeBase.is_active.is_(True))
-            .order_by(KnowledgeBase.created_at.desc())
+            .filter(
+                KnowledgeBase.is_active.is_(True)
+            )
+            .order_by(
+                KnowledgeBase.created_at.desc()
+            )
             .limit(limit)
             .all()
         )
@@ -49,10 +54,15 @@ class QuestionRepository:
 
         return session
 
-    def get_chat_session_by_id(self, session_id: int):
+    def get_chat_session_by_id(
+        self,
+        session_id: int,
+    ):
         return (
             self.db.query(ChatSession)
-            .filter(ChatSession.id == session_id)
+            .filter(
+                ChatSession.id == session_id
+            )
             .first()
         )
 
@@ -87,27 +97,47 @@ class QuestionRepository:
 
             self.db.commit()
             self.db.refresh(user_chat_message)
-            self.db.refresh(assistant_chat_message)
+            self.db.refresh(
+                assistant_chat_message
+            )
 
-            return user_chat_message, assistant_chat_message
+            return (
+                user_chat_message,
+                assistant_chat_message,
+            )
 
         except Exception:
             self.db.rollback()
             raise
 
-    def get_sessions_by_user(self, user_id: int):
+    def get_sessions_by_user(
+        self,
+        user_id: int,
+    ):
         return (
             self.db.query(ChatSession)
-            .filter(ChatSession.user_id == user_id)
-            .order_by(ChatSession.created_at.desc())
+            .filter(
+                ChatSession.user_id == user_id
+            )
+            .order_by(
+                ChatSession.created_at.desc()
+            )
             .all()
         )
 
-    def get_messages_by_session(self, session_id: int):
+    def get_messages_by_session(
+        self,
+        session_id: int,
+    ):
         return (
             self.db.query(ChatMessage)
-            .filter(ChatMessage.session_id == session_id)
-            .order_by(ChatMessage.created_at.asc())
+            .filter(
+                ChatMessage.session_id
+                == session_id
+            )
+            .order_by(
+                ChatMessage.created_at.asc()
+            )
             .all()
         )
 
@@ -118,12 +148,17 @@ class QuestionRepository:
     ):
         messages = (
             self.db.query(ChatMessage)
-            .filter(ChatMessage.session_id == session_id)
-            .order_by(ChatMessage.created_at.desc())
+            .filter(
+                ChatMessage.session_id
+                == session_id
+            )
+            .order_by(
+                ChatMessage.created_at.desc()
+            )
             .limit(limit)
             .all()
         )
 
-        # La consulta obtiene los más recientes en DESC, pero Gemini debe
-        # recibirlos en orden cronológico.
-        return list(reversed(messages))
+        return list(
+            reversed(messages)
+        )

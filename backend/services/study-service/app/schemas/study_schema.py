@@ -1,23 +1,45 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CurriculumResponse(BaseModel):
     id: int
+    curriculum_plan_id: int | None = None
     career: str
     cycle: int
     course_code: str
     course_name: str
     credits: int
     modality: str | None = None
-    prerequisites: list[str] | None = None
     course_type: str | None = None
-    total_hours: int | None = None
+    is_elective: bool = False
+    prerequisites: list[str] = Field(
+        default_factory=list,
+    )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class CurriculumCycleResponse(BaseModel):
+    cycle: int
+    total_courses: int
+    courses: list[CurriculumResponse]
+
+
+class FullCurriculumResponse(BaseModel):
+    curriculum_plan_id: int
+    career: str
+    curriculum_code: str
+    version: str | None = None
+    source_name: str | None = None
+    source_date: date | None = None
+    is_official: bool
+    total_courses: int
+    cycles: list[CurriculumCycleResponse]
 
 
 class CertificationResponse(BaseModel):
@@ -30,8 +52,9 @@ class CertificationResponse(BaseModel):
     url: str | None = None
     is_free: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
 
 class LearningRouteResponse(BaseModel):
@@ -43,8 +66,9 @@ class LearningRouteResponse(BaseModel):
     ai_summary: str | None = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
 
 class NextCycleResponse(BaseModel):
@@ -65,3 +89,24 @@ class CoursePrerequisitesResponse(BaseModel):
 class CourseUnlocksResponse(BaseModel):
     course: CurriculumResponse
     unlocked_courses: list[CurriculumResponse]
+
+
+class SpecializationCourseResponse(BaseModel):
+    course_id: int
+    course_code: str
+    course_name: str
+    cycle: int
+    credits: int
+    modality: str | None = None
+    relevance_level: int
+    justification: str | None = None
+
+
+class SpecializationPathResponse(BaseModel):
+    specialization_code: str
+    specialization_name: str
+    description: str | None = None
+    career: str
+    curriculum_code: str
+    total_courses: int
+    courses: list[SpecializationCourseResponse]
