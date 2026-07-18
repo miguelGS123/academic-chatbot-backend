@@ -125,6 +125,10 @@ export default function LoginScreen(): React.JSX.Element {
 
   return (
     <AppScreen contentStyle={styles.content}>
+      {/* Orbes de neón de fondo para dar profundidad ambiental */}
+      <View style={styles.neonOrb1} />
+      <View style={styles.neonOrb2} />
+
       <View style={styles.brandContainer}>
         <AppText style={styles.brandTitle}>Chatzitho</AppText>
 
@@ -133,68 +137,71 @@ export default function LoginScreen(): React.JSX.Element {
         </AppText>
       </View>
 
-      <AppCard>
-        <View style={styles.form}>
-          <AppSelect
-            disabled={isLoading}
-            error={errors.university}
-            label="Universidad"
-            options={universityOptions}
-            placeholder="-- Seleccione --"
-            value={form.university}
-            onChange={(value) => updateField('university', value)}
-          />
+      {/* Envoltorio de cristal esmerilado con borde espejo y resplandor neón */}
+      <View style={styles.glassWrapper}>
+        <AppCard>
+          <View style={styles.form}>
+            <AppSelect
+              disabled={isLoading}
+              error={errors.university}
+              label="Universidad"
+              options={universityOptions}
+              placeholder="-- Seleccione --"
+              value={form.university}
+              onChange={(value) => updateField('university', value)}
+            />
 
-          <AppInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
-            error={errors.email}
-            keyboardType="email-address"
-            label="Correo institucional"
-            placeholder="usuario@autonoma.edu.pe"
-            value={form.email}
-            onChangeText={(value) => updateField('email', value)}
-          />
+            <AppInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+              error={errors.email}
+              keyboardType="email-address"
+              label="Correo institucional"
+              placeholder="usuario@autonoma.edu.pe"
+              value={form.email}
+              onChangeText={(value) => updateField('email', value)}
+            />
 
-          <AppInput
-            editable={!isLoading}
-            error={errors.password}
-            label="Contraseña"
-            placeholder="Ingresa tu contraseña"
-            secureTextEntry
-            value={form.password}
-            onChangeText={(value) => updateField('password', value)}
-          />
+            <AppInput
+              editable={!isLoading}
+              error={errors.password}
+              label="Contraseña"
+              placeholder="Ingresa tu contraseña"
+              secureTextEntry
+              value={form.password}
+              onChangeText={(value) => updateField('password', value)}
+            />
 
-          <Pressable disabled={isLoading} onPress={handlePasswordRecovery}>
-            <AppText color={colors.brand.primary} style={styles.recoveryText}>
-              ¿Olvidaste o necesitas actualizar tu contraseña?
-            </AppText>
-          </Pressable>
-
-          <AppButton
-            loading={isLoading}
-            title="Ingresar"
-            onPress={() => {
-              void handleLogin();
-            }}
-          />
-
-          <Pressable
-            disabled={isLoading}
-            style={styles.registerLinkContainer}
-            onPress={() => router.push(registerRoute)}
-          >
-            <AppText color={colors.text.muted} variant="caption">
-              ¿No tienes cuenta?{' '}
-              <AppText color={colors.brand.primary} variant="caption">
-                Regístrate
+            <Pressable disabled={isLoading} onPress={handlePasswordRecovery}>
+              <AppText color={colors.brand.primary} style={styles.recoveryText}>
+                ¿Olvidaste o necesitas actualizar tu contraseña?
               </AppText>
-            </AppText>
-          </Pressable>
-        </View>
-      </AppCard>
+            </Pressable>
+
+            <AppButton
+              loading={isLoading}
+              title="Ingresar"
+              onPress={() => {
+                void handleLogin();
+              }}
+            />
+
+            <Pressable
+              disabled={isLoading}
+              style={styles.registerLinkContainer}
+              onPress={() => router.push(registerRoute)}
+            >
+              <AppText color={colors.text.muted} variant="caption">
+                ¿No tienes cuenta?{' '}
+                <AppText color={colors.brand.primary} variant="caption">
+                  Regístrate
+                </AppText>
+              </AppText>
+            </Pressable>
+          </View>
+        </AppCard>
+      </View>
     </AppScreen>
   );
 }
@@ -235,5 +242,41 @@ const styles = StyleSheet.create({
 
   registerLinkContainer: {
     alignItems: 'center',
+  },
+
+  /* --- NUEVOS ESTILOS AGREGADOS PARA EL EFECTO VISUAL --- */
+  glassWrapper: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)', // Reflejo brillante tipo canto de vidrio
+    padding: 1,
+    // Efecto de aura / resplandor neón exterior (Glow)
+    shadowColor: colors.brand.primary,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 6, // Soporte de relieve para Android
+  },
+
+  neonOrb1: {
+    position: 'absolute',
+    top: '10%',
+    left: '-25%',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: colors.brand.primary,
+    opacity: 0.18, // Destello celeste suave difuminado por software
+  },
+
+  neonOrb2: {
+    position: 'absolute',
+    bottom: '5%',
+    right: '-20%',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#7c3aed', // Contraste violeta neón espectacular
+    opacity: 0.12,
   },
 });

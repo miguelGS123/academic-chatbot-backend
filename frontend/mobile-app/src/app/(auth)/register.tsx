@@ -30,69 +30,24 @@ type RegisterErrors = Partial<Record<keyof RegisterForm, string>>;
 const loginRoute = '/(auth)/login' as Href;
 
 const careerOptions: AppSelectOption[] = [
-  {
-    label: 'Ingeniería de Sistemas',
-    value: 'Ingeniería de Sistemas',
-  },
-  {
-    label: 'Administración',
-    value: 'Administración',
-  },
-  {
-    label: 'Derecho',
-    value: 'Derecho',
-  },
-  {
-    label: 'Psicología',
-    value: 'Psicología',
-  },
-  {
-    label: 'Contabilidad',
-    value: 'Contabilidad',
-  },
+  { label: 'Ingeniería de Sistemas', value: 'Ingeniería de Sistemas' },
+  { label: 'Administración', value: 'Administración' },
+  { label: 'Derecho', value: 'Derecho' },
+  { label: 'Psicología', value: 'Psicología' },
+  { label: 'Contabilidad', value: 'Contabilidad' },
 ];
 
 const cycleOptions: AppSelectOption[] = [
-  {
-    label: 'I Ciclo',
-    value: '1',
-  },
-  {
-    label: 'II Ciclo',
-    value: '2',
-  },
-  {
-    label: 'III Ciclo',
-    value: '3',
-  },
-  {
-    label: 'IV Ciclo',
-    value: '4',
-  },
-  {
-    label: 'V Ciclo',
-    value: '5',
-  },
-  {
-    label: 'VI Ciclo',
-    value: '6',
-  },
-  {
-    label: 'VII Ciclo',
-    value: '7',
-  },
-  {
-    label: 'VIII Ciclo',
-    value: '8',
-  },
-  {
-    label: 'IX Ciclo',
-    value: '9',
-  },
-  {
-    label: 'X Ciclo',
-    value: '10',
-  },
+  { label: 'I Ciclo', value: '1' },
+  { label: 'II Ciclo', value: '2' },
+  { label: 'III Ciclo', value: '3' },
+  { label: 'IV Ciclo', value: '4' },
+  { label: 'V Ciclo', value: '5' },
+  { label: 'VI Ciclo', value: '6' },
+  { label: 'VII Ciclo', value: '7' },
+  { label: 'VIII Ciclo', value: '8' },
+  { label: 'IX Ciclo', value: '9' },
+  { label: 'X Ciclo', value: '10' },
 ];
 
 const initialForm: RegisterForm = {
@@ -184,9 +139,7 @@ export default function RegisterScreen(): React.JSX.Element {
   async function handleRegister(): Promise<void> {
     const isValid = validateForm();
 
-    if (!isValid) {
-      return;
-    }
+    if (!isValid) return;
 
     try {
       setIsSubmitting(true);
@@ -221,101 +174,108 @@ export default function RegisterScreen(): React.JSX.Element {
 
   return (
     <AppScreen contentStyle={styles.content} scrollable>
+      {/* Orbes de Neón traseros para la atmósfera Cyberpunk */}
+      <View style={styles.neonOrbTop} />
+      <View style={styles.neonOrbBottom} />
+
       <View style={styles.header}>
-        <AppText variant="badge">Chatzitho</AppText>
+        <AppText variant="badge" style={styles.badgeText}>Chatzitho</AppText>
 
         <View style={styles.titleGroup}>
-          <AppText variant="title">Crear cuenta</AppText>
-
-          <AppText variant="subtitle">
-            Regístrate con tu correo institucional para acceder al ecosistema
-            académico.
+          <AppText variant="title" style={styles.mainTitle}>Crear cuenta</AppText>
+          <AppText variant="subtitle" style={styles.subtitleText}>
+            Regístrate con tu correo institucional para acceder al ecosistema académico.
           </AppText>
         </View>
       </View>
 
-      <AppCard>
-        <AppInput
-          autoCapitalize="words"
-          autoCorrect={false}
-          editable={!isSubmitting}
-          error={errors.fullName}
-          label="Nombre completo"
-          placeholder="Usuario Demo"
-          value={form.fullName}
-          onChangeText={(value) => updateField('fullName', value)}
-        />
+      {/* Contenedor con Efecto Glassmorphism */}
+      <View style={styles.glassContainer}>
+        <AppCard style={styles.transparentCard}>
+          <AppInput
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!isSubmitting}
+            error={errors.fullName}
+            label="Nombre completo"
+            placeholder="Usuario Demo"
+            value={form.fullName}
+            onChangeText={(value) => updateField('fullName', value)}
+          />
 
-        <AppInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isSubmitting}
-          error={errors.email}
-          keyboardType="email-address"
-          label="Correo institucional"
-          placeholder="usuario@autonoma.edu.pe"
-          value={form.email}
-          onChangeText={(value) => updateField('email', value)}
-        />
+          <AppInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isSubmitting}
+            error={errors.email}
+            keyboardType="email-address"
+            label="Correo institucional"
+            placeholder="usuario@autonoma.edu.pe"
+            value={form.email}
+            onChangeText={(value) => updateField('email', value)}
+          />
 
-        <AppSelect
-          disabled={isSubmitting}
-          error={errors.career}
-          label="Carrera"
-          options={careerOptions}
-          placeholder="-- Seleccione --"
-          value={form.career}
-          onChange={(value) => updateField('career', value)}
-        />
+          <AppSelect
+            disabled={isSubmitting}
+            error={errors.career}
+            label="Carrera"
+            options={careerOptions}
+            placeholder="-- Seleccione --"
+            value={form.career}
+            onChange={(value) => updateField('career', value)}
+          />
 
-        <AppSelect
-          disabled={isSubmitting}
-          error={errors.cycle}
-          label="Ciclo académico"
-          options={cycleOptions}
-          placeholder="-- Seleccione --"
-          value={form.cycle}
-          onChange={(value) => updateField('cycle', value)}
-        />
+          <AppSelect
+            disabled={isSubmitting}
+            error={errors.cycle}
+            label="Ciclo académico"
+            options={cycleOptions}
+            placeholder="-- Seleccione --"
+            value={form.cycle}
+            onChange={(value) => updateField('cycle', value)}
+          />
 
-        <AppInput
-          editable={!isSubmitting}
-          error={errors.password}
-          label="Contraseña"
-          placeholder="Mínimo 6 caracteres"
-          secureTextEntry
-          value={form.password}
-          onChangeText={(value) => updateField('password', value)}
-        />
+          <AppInput
+            editable={!isSubmitting}
+            error={errors.password}
+            label="Contraseña"
+            placeholder="Mínimo 6 caracteres"
+            secureTextEntry
+            value={form.password}
+            onChangeText={(value) => updateField('password', value)}
+          />
 
-        <AppInput
-          editable={!isSubmitting}
-          error={errors.confirmPassword}
-          label="Confirmar contraseña"
-          placeholder="Repite tu contraseña"
-          secureTextEntry
-          value={form.confirmPassword}
-          onChangeText={(value) => updateField('confirmPassword', value)}
-        />
+          <AppInput
+            editable={!isSubmitting}
+            error={errors.confirmPassword}
+            label="Confirmar contraseña"
+            placeholder="Repite tu contraseña"
+            secureTextEntry
+            value={form.confirmPassword}
+            onChangeText={(value) => updateField('confirmPassword', value)}
+          />
 
-        <AppButton
-          disabled={!isFormValid}
-          loading={isSubmitting}
-          title="Crear cuenta"
-          onPress={() => {
-            void handleRegister();
-          }}
-        />
+          <View style={{ marginTop: spacing.md }}>
+            <AppButton
+              disabled={!isFormValid}
+              loading={isSubmitting}
+              title="Crear cuenta"
+              onPress={() => {
+                void handleRegister();
+              }}
+            />
+          </View>
 
-        <AppText
-          color={colors.text.muted}
-          style={styles.loginLink}
-          variant="caption"
-          onPress={() => router.replace(loginRoute)}
-        >
-          Ya tengo una cuenta
-        </AppText>
-      </AppCard>
+          <AppText
+            color={colors.text.muted}
+            style={styles.loginLink}
+            variant="caption"
+            onPress={() => router.replace(loginRoute)}
+          >
+            Ya tengo una cuenta
+          </AppText>
+        </AppCard>
+      </View>
     </AppScreen>
   );
 }
@@ -324,17 +284,78 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
+    paddingBottom: spacing.xl,
+    position: 'relative',
+  },
+
+  // Orbes de Neón de Fondo (Ajustados para no entorpecer el scroll largo)
+  neonOrbTop: {
+    position: 'absolute',
+    top: -60,
+    right: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#00f2fe', // Cyan de neón
+    opacity: 0.12,
+    shadowColor: '#00f2fe',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+  },
+  neonOrbBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -100,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#7f00ff', // Morado de neón
+    opacity: 0.15,
+    shadowColor: '#7f00ff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 50,
   },
 
   header: {
     gap: spacing.md,
+    marginBottom: spacing.lg,
+    zIndex: 2,
+  },
+  badgeText: {
+    alignSelf: 'flex-start',
+    color: '#00f2fe',
+    fontWeight: 'bold',
+  },
+  mainTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  subtitleText: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 
-  titleGroup: {
+  // Contenedor Glassmorphism
+  glassContainer: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    zIndex: 2,
+  },
+  transparentCard: {
+    backgroundColor: 'transparent',
+    padding: spacing.md,
     gap: spacing.sm,
   },
 
   loginLink: {
     textAlign: 'center',
+    marginTop: spacing.md,
+    color: '#00f2fe',
+    textDecorationLine: 'underline',
   },
 });
