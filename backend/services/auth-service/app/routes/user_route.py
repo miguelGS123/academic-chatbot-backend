@@ -52,7 +52,7 @@ def build_current_user_response(
 def register(
     user: UserCreate,
     db: Session = Depends(get_db),
-):
+) -> UserResponse:
     created_user = register_user(
         db=db,
         full_name=user.full_name,
@@ -78,7 +78,7 @@ def register(
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
-):
+) -> dict[str, str]:
     access_token = login_user(
         db=db,
         email=form_data.username,
@@ -106,7 +106,7 @@ def login(
 )
 def get_me(
     current_user: User = Depends(get_current_user),
-):
+) -> CurrentUserResponse:
     return build_current_user_response(current_user)
 
 
@@ -117,5 +117,5 @@ def get_me(
 )
 def validate_access_token(
     current_user: User = Depends(get_current_user),
-):
+) -> CurrentUserResponse:
     return build_current_user_response(current_user)

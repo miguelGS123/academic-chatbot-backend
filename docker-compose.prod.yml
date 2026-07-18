@@ -1,0 +1,110 @@
+name: academic-chatbot-platform-prod
+
+services:
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    env_file:
+      - ./backend/services/auth-service/.env
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  study-service:
+    build:
+      context: ./backend/services/study-service
+      dockerfile: Dockerfile
+    container_name: study-service
+    env_file:
+      - ./backend/services/study-service/.env
+    expose:
+      - "8002"
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  courses-service:
+    build:
+      context: ./backend/services/courses-service
+      dockerfile: Dockerfile
+    container_name: courses-service
+    env_file:
+      - ./backend/services/courses-service/.env
+    expose:
+      - "8003"
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  questions-service:
+    build:
+      context: ./backend/services/questions-service
+      dockerfile: Dockerfile
+    container_name: questions-service
+    env_file:
+      - ./backend/services/questions-service/.env
+    expose:
+      - "8004"
+    depends_on:
+      - auth-service
+      - study-service
+      - courses-service
+      - payments-service
+      - teachers-service
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  payments-service:
+    build:
+      context: ./backend/services/payments-service
+      dockerfile: Dockerfile
+    container_name: payments-service
+    env_file:
+      - ./backend/services/payments-service/.env
+    expose:
+      - "8005"
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  teachers-service:
+    build:
+      context: ./backend/services/teachers-service
+      dockerfile: Dockerfile
+    container_name: teachers-service
+    env_file:
+      - ./backend/services/teachers-service/.env
+    expose:
+      - "8006"
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: api-gateway
+    ports:
+      - "80:8000"
+    volumes:
+      - ./backend/gateway/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./backend/gateway/nginx/proxy_params:/etc/nginx/proxy_params:ro
+    depends_on:
+      - auth-service
+      - study-service
+      - courses-service
+      - questions-service
+      - payments-service
+      - teachers-service
+    restart: unless-stopped
+    networks:
+      - academic-chatbot-network
+
+networks:
+  academic-chatbot-network:
+    name: academic-chatbot-network
+    driver: bridge
