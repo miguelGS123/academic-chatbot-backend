@@ -1,8 +1,8 @@
 export const endpoints = {
   auth: {
-    login: '/api/v1/auth/users/login',
-    register: '/api/v1/auth/users/register',
-    me: '/api/v1/auth/users/me',
+    login: '/api/v1/auth/login',
+    register: '/api/v1/auth/register',
+    me: '/api/v1/auth/me',
   },
 
   questions: {
@@ -17,17 +17,24 @@ export const endpoints = {
 
   study: {
     health: '/api/v1/study/health',
-    nextCycle: (userId: number) => `/api/v1/study/next-cycle/${userId}`,
+
+    nextCycle: (userId: number) =>
+      `/api/v1/study/next-cycle/${userId}`,
+
     learningPlatforms: '/api/v1/study/learning-platforms',
   },
 
   courses: {
-    myCourses: (userId: number) => `/api/v1/courses/my-courses/${userId}`,
+    myCourses: (userId: number) =>
+      `/api/v1/courses/my-courses/${userId}`,
   },
 
   payments: {
-    summary: (userId: number) => `/api/v1/payments/summary/${userId}`,
-    pay: (paymentId: number) => `/api/v1/payments/pay/${paymentId}`,
+    summary: (userId: number) =>
+      `/api/v1/payments/summary/${userId}`,
+
+    pay: (paymentId: number) =>
+      `/api/v1/payments/pay/${paymentId}`,
   },
 
   teachers: {
