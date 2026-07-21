@@ -1,0 +1,385 @@
+# Manual de Usuario
+# Academic Chatbot Platform
+
+**Versión:** 1.0
+
+---
+
+# Índice
+
+1. Introducción
+2. Requisitos del Sistema
+3. Acceso a la Aplicación
+4. Inicio de Sesión
+5. Registro de Usuario
+6. Pantalla Principal
+7. Módulo Estudio
+8. Módulo Cursos
+9. Módulo Pagos
+10. Módulo Preguntas (Chatbot IA)
+11. Módulo Docentes
+12. Perfil del Usuario
+13. Cierre de Sesión
+14. Solución de Problemas
+15. Preguntas Frecuentes
+16. Recomendaciones de Uso
+
+---
+
+# 1. Introducción
+
+Academic Chatbot Platform es una aplicación móvil desarrollada para brindar apoyo académico a estudiantes universitarios mediante una plataforma centralizada que integra información académica, cursos, docentes, pagos y un asistente inteligente basado en Inteligencia Artificial.
+
+La aplicación permite acceder de forma rápida y sencilla a los principales servicios académicos desde un dispositivo móvil.
+
+---
+
+# 2. Requisitos del Sistema
+
+Para utilizar la aplicación correctamente se recomienda contar con:
+
+- Dispositivo móvil Android compatible.
+- Conexión a Internet.
+- Cuenta registrada en la plataforma.
+- Aplicación instalada y actualizada.
+
+---
+
+# 3. Acceso a la Aplicación
+
+Al abrir la aplicación aparecerá la pantalla de autenticación.
+
+Desde esta pantalla podrá:
+
+- Iniciar sesión.
+- Registrarse como nuevo usuario.
+
+---
+
+# 4. Inicio de Sesión
+
+## Paso 1
+
+Abra la aplicación.
+
+## Paso 2
+
+Ingrese:
+
+- Correo institucional.
+- Contraseña.
+
+## Paso 3
+
+Presione el botón **Iniciar Sesión**.
+
+Si las credenciales son correctas accederá automáticamente a la pantalla principal.
+
+En caso contrario el sistema mostrará un mensaje indicando el motivo del error.
+
+### Posibles errores
+
+- Correo incorrecto.
+- Contraseña incorrecta.
+- Usuario no registrado.
+- Problemas de conexión.
+
+---
+
+# 5. Registro de Usuario
+
+Si aún no posee una cuenta deberá registrarse.
+
+## Paso 1
+
+Presione **Registrarse**.
+
+## Paso 2
+
+Complete la información solicitada.
+
+- Nombre completo
+- Correo institucional
+- Contraseña
+- Confirmación de contraseña
+- Carrera
+- Ciclo académico
+
+## Paso 3
+
+Presione **Crear Cuenta**.
+
+Una vez finalizado el proceso podrá iniciar sesión normalmente.
+
+---
+
+# 6. Pantalla Principal
+
+Después de iniciar sesión se mostrará el menú principal de la aplicación.
+
+Desde esta pantalla podrá acceder a los siguientes módulos:
+
+- Estudio
+- Cursos
+- Pagos
+- Preguntas IA
+- Docentes
+- Perfil
+
+Seleccione cualquiera de ellos para acceder a sus funcionalidades.
+
+---
+
+# 7. Módulo Estudio
+
+Este módulo proporciona información relacionada con la formación académica del estudiante.
+
+## Funciones disponibles
+
+- Consultar la malla curricular.
+- Revisar prerrequisitos.
+- Consultar cursos desbloqueados.
+- Visualizar rutas de aprendizaje.
+- Consultar certificaciones recomendadas.
+
+## Consultar la Malla Curricular
+
+1. Ingrese al módulo **Estudio**.
+2. Seleccione **Malla Curricular**.
+3. Desplácese por los ciclos académicos.
+4. Seleccione un curso para visualizar su información.
+
+## Consultar Prerrequisitos
+
+1. Seleccione un curso.
+2. Presione **Prerrequisitos**.
+3. El sistema mostrará los cursos requeridos previamente.
+
+## Consultar Certificaciones
+
+1. Ingrese a **Certificaciones**.
+2. Revise las certificaciones sugeridas según su carrera.
+
+---
+
+# 8. Módulo Cursos
+
+Permite consultar la información correspondiente a los cursos matriculados.
+
+## Funciones
+
+- Ver cursos matriculados.
+- Consultar horarios.
+- Revisar sílabos.
+- Consultar información detallada.
+
+## Ver Cursos
+
+1. Abra el módulo **Cursos**.
+2. Revise la lista de cursos.
+3. Seleccione uno para visualizar su información.
+
+## Consultar Horario
+
+1. Seleccione el curso.
+2. Presione **Horario**.
+3. Revise los días y horas asignados.
+
+## Consultar Sílabo
+
+1. Seleccione el curso.
+2. Presione **Sílabo**.
+3. Revise los contenidos y objetivos del curso.
+
+---
+
+# 9. Módulo Pagos
+
+Este módulo permite consultar la información económica del estudiante.
+
+## Funciones
+
+- Consultar pagos pendientes.
+- Consultar pagos vencidos.
+- Revisar historial de pagos.
+- Visualizar resumen de cuenta.
+
+## Consultar Pagos Pendientes
+
+1. Abra el módulo **Pagos**.
+2. Seleccione **Pendientes**.
+3. Revise las obligaciones disponibles.
+
+## Consultar Historial
+
+1. Seleccione **Historial**.
+2. Visualice todos los pagos realizados.
+
+## Realizar un Pago
+
+1. Seleccione la obligación pendiente.
+2. Elija el método de pago disponible.
+3. Confirme la operación.
+4. Espere el mensaje de confirmación.
+
+---
+
+# 10. Módulo Preguntas (Chatbot IA)
+
+El Chatbot Inteligente permite resolver consultas académicas mediante Inteligencia Artificial.
+
+## Ejemplos de consultas
+
+- ¿Qué cursos debo llevar para especializarme en Inteligencia Artificial?
+- ¿Qué certificaciones me recomiendas?
+- ¿Qué cursos tienen prerrequisitos?
+- ¿Cómo puedo prepararme para DevOps?
+- ¿Qué cursos desbloqueo al aprobar Programación II?
+
+## Realizar una Consulta
+
+1. Abra el módulo **Preguntas**.
+2. Escriba su consulta.
+3. Presione **Enviar**.
+4. Espere la respuesta del asistente.
+
+## Consultar Historial
+
+1. Ingrese al historial.
+2. Seleccione una conversación.
+3. Continúe la conversación si lo desea.
+
+---
+
+# 11. Módulo Docentes
+
+Permite consultar información sobre los docentes asignados.
+
+## Funciones
+
+- Consultar docentes del ciclo.
+- Visualizar información del docente.
+
+## Consultar Docentes
+
+1. Abra el módulo **Docentes**.
+2. Revise la lista disponible.
+3. Seleccione un docente para visualizar su información.
+
+---
+
+# 12. Perfil del Usuario
+
+Desde este módulo podrá consultar su información personal.
+
+Entre los datos mostrados se encuentran:
+
+- Nombre completo.
+- Correo institucional.
+- Carrera.
+- Ciclo académico.
+- Teléfono (si se encuentra registrado).
+
+Dependiendo de la configuración de la plataforma algunos datos podrán ser modificados.
+
+---
+
+# 13. Cierre de Sesión
+
+Para cerrar la sesión:
+
+1. Abra el menú principal.
+2. Seleccione **Cerrar Sesión**.
+3. Confirme la operación.
+
+La aplicación regresará automáticamente a la pantalla de inicio de sesión.
+
+---
+
+# 14. Solución de Problemas
+
+## No puedo iniciar sesión
+
+Verifique:
+
+- Correo electrónico.
+- Contraseña.
+- Conexión a Internet.
+
+---
+
+## La aplicación no carga información
+
+Compruebe:
+
+- Conexión a Internet.
+- Estado del servidor.
+- Actualice la pantalla.
+
+---
+
+## El chatbot no responde
+
+- Espere algunos segundos.
+- Revise la conexión a Internet.
+- Cierre y vuelva a abrir la aplicación.
+
+---
+
+## No aparecen mis cursos
+
+Compruebe que:
+
+- Su matrícula esté registrada correctamente.
+- Ha iniciado sesión con la cuenta correspondiente.
+
+---
+
+## Error inesperado
+
+Si el problema continúa comuníquese con el administrador de la plataforma.
+
+---
+
+# 15. Preguntas Frecuentes
+
+## ¿Necesito Internet para utilizar la aplicación?
+
+Sí. Todas las consultas requieren conexión a Internet.
+
+---
+
+## ¿Puedo recuperar conversaciones anteriores?
+
+Sí. Desde el historial del módulo Preguntas podrá acceder a conversaciones anteriores.
+
+---
+
+## ¿Puedo consultar cursos de ciclos anteriores?
+
+Sí, siempre que la información esté registrada en la plataforma.
+
+---
+
+## ¿Qué hago si olvidé mi contraseña?
+
+Comuníquese con el administrador del sistema o utilice la opción de recuperación de contraseña si se encuentra disponible.
+
+---
+
+## ¿Puedo utilizar la aplicación desde otro dispositivo?
+
+Sí. Solo deberá iniciar sesión nuevamente con sus credenciales.
+
+---
+
+# 16. Recomendaciones de Uso
+
+Para obtener una mejor experiencia se recomienda:
+
+- Mantener la aplicación actualizada.
+- Utilizar una conexión estable a Internet.
+- No compartir sus credenciales de acceso.
+- Cerrar sesión cuando utilice dispositivos compartidos.
+- Revisar periódicamente el historial de conversaciones.
+- Consultar frecuentemente los módulos de cursos, pagos y estudio para mantenerse informado sobre su información académica.
